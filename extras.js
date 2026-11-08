@@ -109,17 +109,23 @@ function storageInfo(){
  " Данные остаются только на этом устройстве.";
 }
 function recipeMatch(x,terms){const ingredients=String(x[2]).toLocaleLowerCase("ru-RU");return terms.some(t=>ingredients.includes(t))}
+let recipePageLimit=20, recipeFilterSignature="";
 function renderRecipesEnhanced(){
  const q=get("recipeSearch").value.trim().toLocaleLowerCase("ru-RU"),cat=get("recipeCategory").value;
  const pantry=get("pantryQuery").value.toLocaleLowerCase("ru-RU").split(/[,;\n]/).map(x=>x.trim()).filter(x=>x.length>1);
  const onlyFavs=get("recipeFavOnly").checked,favs=new Set(Array.isArray(db.recipeFavorites)?db.recipeFavorites:[]);
+ const signature=JSON.stringify([q,cat,pantry,onlyFavs]);
+ if(signature!==recipeFilterSignature){recipePageLimit=20;recipeFilterSignature=signature}
  const filtered=recipes.map((item,idx)=>({item,idx})).filter(({item})=>
  (!cat||item[0]===cat)&&(!q||(item[1]+" "+item[2]).toLocaleLowerCase("ru-RU").includes(q))&&(!onlyFavs||favs.has(item[1]))&&(!pantry.length||recipeMatch(item,pantry))
  ).sort((a,b)=>Number(favs.has(b.item[1]))-Number(favs.has(a.item[1])));
- get("recipeCount").textContent="Найдено: "+filtered.length;
- get("recipeList").innerHTML=filtered.length?filtered.map(({item,idx})=>
+ const visible=filtered.slice(0,recipePageLimit);
+ get("recipeCount").textContent="Найдено: "+filtered.length+" · показано: "+visible.length;
+ let html=visible.length?visible.map(({item,idx})=>
  '<div class="recipe"><div class="row between"><span class="chip">'+clean(item[0])+'</span><button class="btn ghost" type="button" onclick="vNextToggleRecipe('+idx+')">'+(favs.has(item[1])?"★ В избранном":"☆ В избранное")+'</button></div><h3>'+clean(item[1])+'</h3><div class="muted">≈ '+item[3]+' ккал/порция · '+clean(item[4])+'</div><p><b>Ингредиенты:</b> '+clean(item[2])+'</p><p>'+clean(item[5])+'</p><button class="btn secondary" onclick="addRecipe('+idx+')">＋ Добавить в дневник</button></div>'
  ).join(""):'<p class="muted">По запросу ничего не найдено.</p>';
+ if(filtered.length>visible.length)html+='<button class="btn secondary" type="button" onclick="vNextMoreRecipes()">Показать ещё ('+(filtered.length-visible.length)+')</button>';
+ get("recipeList").innerHTML=html;
 }
 function toggleRecipe(i){
  const item=recipes[i];if(!item)return;
@@ -131,5 +137,5 @@ const baseReport=renderReport;renderReport=function(){baseReport();renderWeekly(
 const baseTab=tab;tab=function(name){baseTab(name);if(name==="settings")storageInfo()};
 renderRecipes=renderRecipesEnhanced;
 window.vNextSearchFoods=renderFoodResults;window.vNextFillFood=fillFood;window.vNextRecalcFood=applyPortion;
-window.vNextCopyYesterday=copyYesterday;window.vNextToggleRecipe=toggleRecipe;
+window.vNextCopyYesterday=copyYesterday;window.vNextToggleRecipe=toggleRecipe;window.vNextMoreRecipes=function(){recipePageLimit+=20;renderRecipesEnhanced()};
 })();
