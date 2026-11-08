@@ -69,7 +69,7 @@ test("impossible ranges and unrecognized image results are normalized",()=>{
   assert.equal(noFood.confidence,"low");
 });
 test("server remains disabled without private secrets",async()=>{
-  await withServer({env:{},fetchImpl:()=>{throw Error("MUST_NOT_BE_CALLED")}},async endpoint=>{
+  await withServer({env:{AI_ALLOWED_ORIGIN:TEST_ENV.AI_ALLOWED_ORIGIN},fetchImpl:()=>{throw Error("MUST_NOT_BE_CALLED")}},async endpoint=>{
     const health=await fetch(endpoint+"/health");
     assert.equal((await health.json()).ready,false);
     const response=await post(endpoint,{consent:true,image_data_url:PNG});
