@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js"];
+const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "ai-config.js", "ai-client.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -65,13 +65,15 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","aiAnalyzePhoto","aiPhotoStatus","aiPhotoResult","aiPhotoResultText","aiApplyEstimate"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
   assert.match(serviceWorker, /photo-safe\.js/);
   assert.match(serviceWorker, /meal-builder\.js/);
   assert.match(serviceWorker, /my-foods\.js/);
+  assert.match(serviceWorker, /ai-config\.js/);
+  assert.match(serviceWorker, /ai-client\.js/);
 });
 
 test("opens existing data without a migration or overwriting photos", () => {
@@ -285,6 +287,15 @@ test("malformed ingredient backup cannot replace the diary", () => {
   const data = initialData();
   data.meals[0].ingredients = [{name:"Соль",grams:-40,kcal:0,protein:0,fat:0,carbs:0}];
   assert.throws(() => env.context.window.v12ValidateBackup(data), /некорректный состав блюда/);
+});
+
+test("photo AI remains disabled until backend is securely configured", () => {
+  const env = environment();
+  assert.equal(env.element("aiAnalyzePhoto").hidden, true);
+  assert.equal(env.context.window.MEAL_AI_ENDPOINT, "");
+  env.run("openMeal()");
+  assert.equal(env.element("aiPhotoStatus").textContent, "");
+  assert.equal(env.read().meals.length, 1);
 });
 
 test("report display and recipe favorites do not publish personal data", () => {
