@@ -39,6 +39,13 @@
         !["kcal", "protein", "fat", "carbs"].every(k => goodNumber(m[k], 100000))) {
         throw Error("Файл содержит некорректную запись о еде.");
       }
+      if (m.ingredients !== undefined &&
+        (!Array.isArray(m.ingredients) || m.ingredients.length > 25 ||
+          m.ingredients.some(p => !p || typeof p.name !== "string" || !p.name.trim() || p.name.length > 150 ||
+            !goodNumber(p.grams, 10000) || Number(p.grams) < 0.1 ||
+            !["kcal","protein","fat","carbs"].every(k => goodNumber(p[k],100000))))) {
+        throw Error("Файл содержит некорректный состав блюда.");
+      }
       if (m.photo != null && m.photo !== "" &&
         (typeof m.photo !== "string" || m.photo.length > 8000000 ||
           !/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(m.photo))) {
@@ -320,7 +327,7 @@
     if (!name || !hasValidDate(date)) return alert("Проверь название и дату");
     let photo = null;
     try { photo = await shrink($("mealPhoto").files[0]); }
-    catch (_) { return alert("Не удалось прочитать фотографию"); }
+    catch (e) { return alert("Не удалось обработать фото: " + (e && e.message ? e.message : "неизвестная ошибка")); }
     const item = {
       id: editMealIndex === null ? crypto.randomUUID() : (db.meals[editMealIndex].id || crypto.randomUUID()),
       date, type: $("mealType").value, name,
