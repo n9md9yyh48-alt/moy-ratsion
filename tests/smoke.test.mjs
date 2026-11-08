@@ -52,7 +52,7 @@ function environment(seed = initialData(), options = {}) {
     confirm: message => {confirmations.push(String(message)); return true},
     location: {reload() {}}, URL: {createObjectURL: () => "blob:fake", revokeObjectURL() {}},
     Blob, Image: class {naturalWidth=1800; naturalHeight=1200;
-      set src(_value) {Promise.resolve().then(() => this.onload?.());}}, setTimeout: () => {},
+      set src(_value) {Promise.resolve().then(() => this.onload?.());}}, setTimeout: () => {}, clearTimeout: () => {}, AbortController,
     prompt: () => options.token || "",
     fetch: options.fetch || (() => {throw Error("Unexpected network request")})
   };
