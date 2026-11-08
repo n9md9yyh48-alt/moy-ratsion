@@ -302,6 +302,7 @@
       });
     }
     $("mealDialog").showModal();
+    if (typeof window.vBuilderOpenMeal === "function") window.vBuilderOpenMeal(item);
   }
   function openWeight12(index) {
     editWeightIndex = Number.isInteger(index) && index >= 0 ? index : null;
@@ -329,6 +330,10 @@
       carbs: Number($("mealCarbs").value),
       photo: photo || ($("removeMealPhoto").checked ? null : (editMealIndex === null ? null : db.meals[editMealIndex].photo || null))
     };
+    const composed = typeof window.vBuildGetParts === "function" ? window.vBuildGetParts() : null;
+    const previous = editMealIndex === null ? null : db.meals[editMealIndex];
+    if (composed && composed.length) item.ingredients = composed;
+    else if (previous && Array.isArray(previous.ingredients)) item.ingredients = previous.ingredients;
     if (Object.keys(item).some(k => ["kcal", "protein", "fat", "carbs"].includes(k) &&
       (!Number.isFinite(item[k]) || item[k] < 0))) return alert("Проверь калории и БЖУ");
     if (commit(next => {
