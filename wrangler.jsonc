@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "moy-ratsion-openai",
+  "main": "./cloudflare/worker.mjs",
+  "compatibility_date": "2026-11-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      {"name": "BUDGET", "class_name": "BudgetLedger"}
+    ]
+  },
+  "exports": {
+    "BudgetLedger": {"type": "durable-object", "storage": "sqlite"}
+  },
+  "vars": {
+    "AI_MODEL": "gpt-6.1-terra"
+  },
+  "secrets": {
+    "required": ["OPENAI_API_KEY", "AI_ACCESS_TOKEN"]
+  }
+}
