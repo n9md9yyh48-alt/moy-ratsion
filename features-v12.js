@@ -413,6 +413,7 @@
   window.v12RemoveWeight = removeWeight12;
   window.v12RestoreAutoBackup = restoreAutoBackup;
 
+  window.v12Commit = commit;
   checkStorage();
   render = render12;
   openMeal = openMeal12;
