@@ -138,4 +138,5 @@ const baseTab=tab;tab=function(name){baseTab(name);if(name==="settings")storageI
 renderRecipes=renderRecipesEnhanced;
 window.vNextSearchFoods=renderFoodResults;window.vNextFillFood=fillFood;window.vNextRecalcFood=applyPortion;
 window.vNextCopyYesterday=copyYesterday;window.vNextToggleRecipe=toggleRecipe;window.vNextMoreRecipes=function(){recipePageLimit+=20;renderRecipesEnhanced()};
+window.vNextFoodCatalog=function(){return FOODS.map(f=>({name:f[0],kcal:f[1],protein:f[2],fat:f[3],carbs:f[4],type:f[5]||'Еда'}));};
 })();
