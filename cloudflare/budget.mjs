@@ -37,13 +37,13 @@ export class BudgetLedger {
         slot.history=minute.concat(at);
         row.days[day]=slot;
         await tx.put(key,row);
-        return {ok:true,reserved:hold,remaining:Math.max(0,MONTHLY_LIMIT_MICROUSD-row.spent-row.held)};
+        return {ok:true,month,reserved:hold,remaining:Math.max(0,MONTHLY_LIMIT_MICROUSD-row.spent-row.held)};
       });
     }
     if(action==="settle"){
-      if(typeof payload.id!=="string"||!payload.id)return {ok:false,status:400};
+      if(typeof payload.id!=="string"||!payload.id||!/^\d{4}-\d{2}$/.test(String(payload.month||"")))return {ok:false,status:400};
       return await this.state.storage.transaction(async tx=>{
-        const key="budget:"+month;
+        const key="budget:"+payload.month;
         const row=await tx.get(key);
         if(!row||!row.pending[payload.id])return {ok:false,status:404};
         const hold=row.pending[payload.id].hold;
