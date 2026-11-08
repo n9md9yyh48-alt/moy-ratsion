@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "features-v12.js", "recipes-extra.js", "extras.js"];
+const files = ["app.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -61,10 +61,11 @@ function environment(seed = initialData()) {
 test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
-    "recipeFavOnly","weeklyBars","weightHistory","storageDetails"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
+  assert.match(serviceWorker, /my-foods\.js/);
 });
 
 test("opens existing data without a migration or overwriting photos", () => {
@@ -151,6 +152,52 @@ test("calendar rejects impossible dates", () => {
   const before = env.element("selectedDate").value;
   env.context.window.v12SelectDay("2026-02-31");
   assert.equal(env.element("selectedDate").value, before);
+});
+
+test("removing a photo does not delete or alter the meal", async () => {
+  const env = environment();
+  env.context.window.v12EditMeal(0);
+  assert.equal(env.element("removeMealPhoto").checked, false);
+  env.element("mealName").value = "Яйцо без фото";
+  env.element("removeMealPhoto").checked = true;
+  await env.element("mealForm").onsubmit({preventDefault() {}});
+  assert.equal(env.read().meals.length, 1);
+  assert.equal(env.read().meals[0].name, "Яйцо без фото");
+  assert.equal(env.read().meals[0].photo, null);
+});
+
+test("normal edits preserve existing photos", async () => {
+  const env = environment();
+  const photo = env.read().meals[0].photo;
+  env.context.window.v12EditMeal(0);
+  assert.equal(env.element("removeMealPhoto").checked, false);
+  await env.element("mealForm").onsubmit({preventDefault() {}});
+  assert.equal(env.read().meals[0].photo, photo);
+});
+
+test("save, find, recalculate, and remove personal food templates", () => {
+  const env = environment();
+  env.run("openMeal()");
+  env.element("mealName").value = "Домашняя котлета";
+  env.element("foodGrams").value = 200;
+  env.element("mealKcal").value = 360;
+  env.element("mealProtein").value = 40;
+  env.element("mealFat").value = 16;
+  env.element("mealCarbs").value = 12;
+  env.context.window.vMyFoodSave();
+  assert.equal(env.read().customFoods.length, 1);
+  assert.equal(env.read().customFoods[0].name, "Домашняя котлета");
+  assert.equal(env.read().customFoods[0].kcal, 180);
+  env.element("foodQuery").value = "котлета";
+  env.context.window.vNextSearchFoods();
+  assert.match(env.element("foodResults").innerHTML, /★ Домашняя котлета/);
+  env.context.window.vMyFoodChoose(0);
+  env.element("foodGrams").value = 150;
+  env.context.window.vNextRecalcFood();
+  assert.equal(env.element("mealKcal").value, 270);
+  assert.equal(env.element("mealProtein").value, 30);
+  env.context.window.vMyFoodRemove(0);
+  assert.equal(env.read().customFoods.length, 0);
 });
 
 test("report display and recipe favorites do not publish personal data", () => {
