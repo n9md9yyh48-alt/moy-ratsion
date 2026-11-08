@@ -94,6 +94,7 @@ export function buildVisionRequest({dataUrl,model}) {
     model,
     store:false,
     max_output_tokens:650,
+    reasoning:{effort:"low"},
     input:[{
       role:"user",
       content:[
@@ -109,7 +110,7 @@ export function buildVisionRequest({dataUrl,model}) {
   };
 }
 
-export async function analyzeMealPhoto({imageDataUrl,apiKey,model,fetchImpl=fetch,timeoutMs=25000}) {
+export async function analyzeMealPhoto({imageDataUrl,apiKey,model,fetchImpl=fetch,timeoutMs=25000,onUsage=()=>{}}) {
   if (!apiKey || !model) throw Object.assign(new Error("Сервер не настроен."),{status:503});
   const {dataUrl}=validateImageDataUrl(imageDataUrl);
   const controller=new AbortController();
@@ -125,6 +126,7 @@ export async function analyzeMealPhoto({imageDataUrl,apiKey,model,fetchImpl=fetc
       throw Object.assign(new Error(response.status===429?"Лимит AI-провайдера исчерпан.":"AI-провайдер временно недоступен."),{status:502});
     }
     const body=await response.json();
+    onUsage(body.usage||null);
     return normalizeEstimate(JSON.parse(responseText(body)));
   }catch(err){
     if(err.name==="AbortError")throw Object.assign(new Error("Время ожидания AI истекло."),{status:504});
