@@ -18,8 +18,11 @@
       !!v.settings && typeof v.settings === "object";
   }
   function hasValidDate(v) {
-    return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) &&
-      !Number.isNaN(new Date(String(v) + "T12:00:00").getTime());
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || ""));
+    if (!m) return false;
+    const year = Number(m[1]), month = Number(m[2]), day = Number(m[3]);
+    const date = new Date(year, month - 1, day, 12);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
   }
   function fmtDate(d) {
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
@@ -62,14 +65,15 @@
           }
         } catch (_) { /* Основной дневник важнее автоматической копии */ }
       }
-      localStorage.setItem(KEY, raw); // setItem атомарен; при ошибке старое значение остаётся
-      db = next;
-      render();
-      return true;
+      localStorage.setItem(KEY, raw); // атомарная запись: при ошибке прежнее состояние остаётся
     } catch (e) {
       alert("Не удалось сохранить. Старые записи не изменены. Возможно, память заполнена фотографиями. Сделай резервную копию JSON. " + (e && e.message ? e.message : ""));
       return false;
     }
+    db = next;
+    try { render(); }
+    catch (e) { alert("Запись сохранена, но интерфейс не обновился. Закрой и открой приложение снова."); }
+    return true;
   }
   function knownMeals() {
     return Array.isArray(db.meals) ? db.meals : [];
