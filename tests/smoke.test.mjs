@@ -19,7 +19,7 @@ function initialData(day = iso(-1)) {
     protein: 12, fat: 11, carbs: 1, photo: "data:image/jpeg;base64,AAAA" }],
     weights: [{date: day, value: 110}], settings: {calories: 2500, start: 115, target: 100} };
 }
-function environment(seed = initialData()) {
+function environment(seed = initialData(), options = {}) {
   const state = new Map([["moy-ratsion-v1", JSON.stringify(seed)]]);
   const elements = new Map();
   const alerts = [], confirmations = [];
@@ -52,10 +52,15 @@ function environment(seed = initialData()) {
     confirm: message => {confirmations.push(String(message)); return true},
     location: {reload() {}}, URL: {createObjectURL: () => "blob:fake", revokeObjectURL() {}},
     Blob, Image: class {naturalWidth=1800; naturalHeight=1200;
-      set src(_value) {Promise.resolve().then(() => this.onload?.());}}, setTimeout: () => {}
+      set src(_value) {Promise.resolve().then(() => this.onload?.());}}, setTimeout: () => {},
+    prompt: () => options.token || "",
+    fetch: options.fetch || (() => {throw Error("Unexpected network request")})
   };
   const context = vm.createContext(sandbox);
-  for (const file of files) vm.runInContext(source[file], context, {filename: file});
+  for (const file of files) {
+    if(file === "ai-client.js" && options.endpoint) sandbox.window.MEAL_AI_ENDPOINT = options.endpoint;
+    vm.runInContext(source[file], context, {filename: file});
+  }
   const read = () => JSON.parse(state.get("moy-ratsion-v1"));
   return {context, element, read, alerts, confirmations, state, setQuota: val => {quota = val},
     run: expr => vm.runInContext(expr, context)};
@@ -296,6 +301,40 @@ test("photo AI remains disabled until backend is securely configured", () => {
   env.run("openMeal()");
   assert.equal(env.element("aiPhotoStatus").textContent, "");
   assert.equal(env.read().meals.length, 1);
+});
+
+test("AI analysis is opt-in, requires a photo, and never auto-saves meal data", async () => {
+  const payloads=[];
+  const valid={
+    recognized:true,requires_confirmation:true,estimated_only:true,dish_name:"Курица с рисом",
+    portion_min_g:200,portion_max_g:300,kcal_min:300,kcal_max:500,
+    protein_min_g:20,protein_max_g:50,fat_min_g:5,fat_max_g:15,
+    carbs_min_g:30,carbs_max_g:70,notes:"Порция оценивается по фото.",confidence:"low"
+  };
+  const env=environment(initialData(),{
+    endpoint:"https://private.example/api/analyze-meal",
+    token:"a".repeat(40),
+    fetch:async(url,options)=>{
+      payloads.push({url,options});
+      return {ok:true,status:200,json:async()=>valid};
+    }
+  });
+  const button=env.element("aiAnalyzePhoto");
+  assert.equal(button.hidden,false);
+  assert.equal(payloads.length,0);
+  await button.onclick();
+  assert.equal(payloads.length,0);
+  env.element("mealPhoto").files=[{type:"image/jpeg",size:2000,name:"dish.jpg"}];
+  await button.onclick();
+  assert.equal(payloads.length,1);
+  assert.equal(payloads[0].url,"https://private.example/api/analyze-meal");
+  assert.equal(JSON.parse(payloads[0].options.body).consent,true);
+  assert.equal(env.read().meals.length,1);
+  assert.equal(env.element("aiPhotoResult").hidden,false);
+  env.element("aiApplyEstimate").onclick();
+  assert.equal(env.element("mealKcal").value,400);
+  assert.equal(env.element("mealProtein").value,35);
+  assert.equal(env.read().meals.length,1);
 });
 
 test("report display and recipe favorites do not publish personal data", () => {
