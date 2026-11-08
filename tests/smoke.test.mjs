@@ -36,7 +36,9 @@ function environment(seed = initialData()) {
   const document = {
     getElementById: element,
     querySelectorAll: query => query.includes("button.active") ? [{dataset: {tab: "home"}}] : [],
-    createElement: () => ({click() {}, remove() {}, style: {}}), body: {appendChild() {}}
+    createElement: tag => tag === "canvas" ? {width:0,height:0,getContext: () => canvas,
+      toDataURL: () => "data:image/jpeg;base64,QUFBQUFB"} : {click() {}, remove() {}, style: {}},
+    body: {appendChild() {}}
   };
   const localStorage = {
     getItem: key => state.has(key) ? state.get(key) : null,
@@ -49,7 +51,8 @@ function environment(seed = initialData()) {
     alert: message => alerts.push(String(message)),
     confirm: message => {confirmations.push(String(message)); return true},
     location: {reload() {}}, URL: {createObjectURL: () => "blob:fake", revokeObjectURL() {}},
-    Blob, Image: class {}, setTimeout: () => {}
+    Blob, Image: class {naturalWidth=1800; naturalHeight=1200;
+      set src(_value) {Promise.resolve().then(() => this.onload?.());}}, setTimeout: () => {}
   };
   const context = vm.createContext(sandbox);
   for (const file of files) vm.runInContext(source[file], context, {filename: file});
@@ -266,6 +269,14 @@ test("photo validator rejects unsupported and oversized images", async () => {
   assert.throws(() => validate({type:"image/svg+xml",size:1024,name:"dish.svg"}), /JPEG/);
   assert.throws(() => validate({type:"image/jpeg",size:26*1024*1024,name:"dish.jpg"}), /25 МБ/);
   await assert.rejects(env.run("shrink({type:'image/svg+xml',size:100,name:'dish.svg'})"), /JPEG/);
+  assert.equal(env.read().meals.length, 1);
+});
+
+test("photo is resized and encoded locally as JPEG", async () => {
+  const env = environment();
+  const output = await env.run("shrink({type:'image/jpeg',size:200000,name:'dish.jpg'})");
+  assert.match(output, /^data:image\/jpeg;base64,/);
+  assert.ok(output.length < 180000);
   assert.equal(env.read().meals.length, 1);
 });
 
