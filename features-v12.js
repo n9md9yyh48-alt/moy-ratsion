@@ -193,7 +193,10 @@
     $("carb").textContent = sum(dayItems, "carbs") + " г";
     $("foodDrinks").textContent = "Еда: " + sum(dayItems.filter(x => x.type !== "Напиток"), "kcal") +
       " ккал · Напитки: " + sum(dayItems.filter(x => x.type === "Напиток"), "kcal") + " ккал";
-    $("heading").textContent = selectedDate === today() ? "Сегодня 🍽️" : "Дневник 🍽️";
+    const activeTab = document.querySelectorAll(".tabs button.active")[0];
+    if (!activeTab || activeTab.dataset.tab === "home") {
+      $("heading").textContent = selectedDate === today() ? "Сегодня 🍽️" : "Дневник 🍽️";
+    }
     renderCalendar();
     renderQuick();
     renderMeals();
