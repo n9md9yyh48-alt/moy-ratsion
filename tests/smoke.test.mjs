@@ -146,6 +146,13 @@ test("recipe book has 100 items and pages through results", () => {
   assert.match(env.element("recipeCount").textContent, /показано: 40/);
 });
 
+test("calendar rejects impossible dates", () => {
+  const env = environment();
+  const before = env.element("selectedDate").value;
+  env.context.window.v12SelectDay("2026-02-31");
+  assert.equal(env.element("selectedDate").value, before);
+});
+
 test("report display and recipe favorites do not publish personal data", () => {
   assert.match(source["app.js"], /moy-ratsion-v1/);
   assert.match(html, /Версия 1\.2/);
