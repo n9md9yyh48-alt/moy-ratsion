@@ -54,7 +54,7 @@ export function buildCoachRequest({model,messages,summary=null}){
       "Пользователь отдельно разрешил передать только агрегированные показатели за семь дней, без названий еды и фотографий. "+
       "Не называй пропуски нулевым потреблением. Сводка: "+JSON.stringify(summary)});
   }
-  return {model,instructions,input,store:false,max_output_tokens:700};
+  return {model,instructions,input,store:false,max_output_tokens:700,reasoning:{effort:"low"}};
 }
 export function readCoachOutput(payload){
   if(!payload||payload.status!=="completed"||!Array.isArray(payload.output))
@@ -71,7 +71,7 @@ export function readCoachOutput(payload){
   if(!text||text.length>9000)throw fail("Помощник не вернул корректный ответ.",502);
   return {reply:text,source:"openai",requires_confirmation:true};
 }
-export async function askOpenAI({apiKey,model,payload,fetchImpl=fetch,timeoutMs=25000}){
+export async function askOpenAI({apiKey,model,payload,fetchImpl=fetch,timeoutMs=25000,onUsage=()=>{}}){
   if(!apiKey||typeof apiKey!=="string"||apiKey.length<12)
     throw fail("Сервер OpenAI не настроен.",503);
   const {messages,summary}=validateChatPayload(payload);
@@ -87,7 +87,9 @@ export async function askOpenAI({apiKey,model,payload,fetchImpl=fetch,timeoutMs=
     if(!result.ok)throw fail(result.status===429?
       "Лимит OpenAI исчерпан. Повтори позже.":"Сервис OpenAI временно недоступен.",
       result.status===429?429:502);
-    return readCoachOutput(await result.json());
+    const body=await result.json();
+    onUsage(body.usage||null);
+    return readCoachOutput(body);
   }catch(e){
     if(e.name==="AbortError")throw fail("Время ожидания ответа истекло.",504);
     if(e.status)throw e;
