@@ -109,7 +109,7 @@
     const startOffset = (first.getDay() + 6) % 7;
     const total = new Date(year, month + 1, 0).getDate();
     const mealsByDate = new Set(knownMeals().map(x => x.date));
-    let html = "";
+    let html = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(d => '<span class="week-day">' + d + "</span>").join("");
     for (let i = 0; i < startOffset; i++) html += '<span class="calendar-empty"></span>';
     for (let day = 1; day <= total; day++) {
       const date = fmtDate(new Date(year, month, day, 12));
