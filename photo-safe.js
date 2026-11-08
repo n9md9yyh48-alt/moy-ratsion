@@ -90,6 +90,15 @@
       } catch (e) { finish(e); }
     });
   };
+  function resetPreview() {
+    forgetPreview();
+    if (preview) {
+      preview.classList.toggle("hide", true);
+      if (typeof preview.removeAttribute === "function") preview.removeAttribute("src");
+    }
+    if (status) status.textContent = "";
+  }
   if (input && preview && status) input.onchange = showPreview;
+  window.vPhotoResetPreview = resetPreview;
   window.vPhotoValidate = validImage;
 })();
