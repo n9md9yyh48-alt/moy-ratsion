@@ -4,6 +4,7 @@ import http from "node:http";
 import {timingSafeEqual} from "node:crypto";
 import {fileURLToPath} from "node:url";
 import {analyzeMealPhoto} from "./vision.mjs";
+import {askOpenAI,validateChatPayload} from "./coach.mjs";
 
 const MAX_BODY_BYTES = 2_100_000;
 const DEFAULT_ORIGIN = "https://n9md9yyh48-alt.github.io";
@@ -78,7 +79,7 @@ export function createApiHandler({env=process.env,fetchImpl=fetch,now=Date.now}=
     if(req.url==="/health" && req.method==="GET"){
       return json(res,200,{status:"ok",ready:configured(env)},allowed?origin:"");
     }
-    if(req.method!=="POST"||req.url!=="/api/analyze-meal"){
+    if(req.method!=="POST"||!["/api/analyze-meal","/api/coach"].includes(req.url)){
       return json(res,404,{error:"Не найдено."},allowed?origin:"");
     }
     const cors=allowed?origin:"";
@@ -103,20 +104,24 @@ export function createApiHandler({env=process.env,fetchImpl=fetch,now=Date.now}=
     }
     try{
       const body=await fromJson(req);
-      if(!body||typeof body!=="object"||Array.isArray(body)||
+      if(req.url==="/api/coach"){
+        validateChatPayload(body);
+      }else if(!body||typeof body!=="object"||Array.isArray(body)||
          body.consent!==true||typeof body.image_data_url!=="string"){
         return json(res,400,{error:"Нужно явно подтвердить отправку фото."},cors);
       }
       // Count accepted requests before the provider call; failed provider calls
       // still consume the daily budget to avoid repeated billing attempts.
       recent.push(current);minutePerClient.set(source,recent);dailyUsed++;
-      const result=await analyzeMealPhoto({
+      const result=req.url==="/api/coach" ? await askOpenAI({
+        payload:body,apiKey:env.OPENAI_API_KEY,model:env.AI_MODEL,fetchImpl
+      }) : await analyzeMealPhoto({
         imageDataUrl:body.image_data_url,
         apiKey:env.OPENAI_API_KEY,model:env.AI_MODEL,fetchImpl
       });
       return json(res,200,result,cors);
     }catch(e){
-      const status=[400,413,502,503,504].includes(e.status)?e.status:500;
+      const status=[400,413,429,502,503,504].includes(e.status)?e.status:500;
       return json(res,status,{error:status===500?"Не удалось обработать запрос.":e.message},cors);
     }
   };
