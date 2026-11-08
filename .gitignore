@@ -8,3 +8,8 @@ coverage/
 *.pem
 *.key
 *.p12
+
+.dev.vars
+.dev.vars.*
+.wrangler/
+*.secrets.json
