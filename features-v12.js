@@ -17,6 +17,58 @@
       Array.isArray(v.meals) && Array.isArray(v.weights) &&
       !!v.settings && typeof v.settings === "object";
   }
+
+  // Строгая проверка только для импорта: старые версии продолжают открываться
+  // без миграций, а незнакомый/повреждённый JSON не заменяет дневник.
+  function validateBackup(data) {
+    if (!isValidModel(data)) throw Error("Файл не похож на резервную копию «Моего рациона».");
+    if (data.meals.length > 30000 || data.weights.length > 30000) {
+      throw Error("В файле слишком много записей.");
+    }
+    const goodNumber = (n, max) => n !== null && n !== "" && Number.isFinite(Number(n)) &&
+      Number(n) >= 0 && Number(n) <= max;
+    if (!goodNumber(data.settings.calories, 20000) || Number(data.settings.calories) < 1000 ||
+      !goodNumber(data.settings.start, 500) || Number(data.settings.start) < 20 ||
+      !goodNumber(data.settings.target, 500) || Number(data.settings.target) < 20) {
+      throw Error("В резервной копии некорректные настройки целей.");
+    }
+    for (const m of data.meals) {
+      if (!m || typeof m !== "object" || typeof m.name !== "string" ||
+        !m.name.trim() || m.name.length > 300 || !hasValidDate(m.date) ||
+        typeof m.type !== "string" || m.type.length > 80 ||
+        !["kcal", "protein", "fat", "carbs"].every(k => goodNumber(m[k], 100000))) {
+        throw Error("Файл содержит некорректную запись о еде.");
+      }
+      if (m.photo != null && m.photo !== "" &&
+        (typeof m.photo !== "string" || m.photo.length > 8000000 ||
+          !/^data:image\/(?:jpeg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(m.photo))) {
+        throw Error("Файл содержит недопустимое фото. Поддерживаются только JPEG, PNG и WebP.");
+      }
+    }
+    for (const w of data.weights) {
+      if (!w || !hasValidDate(w.date) || !goodNumber(w.value, 500) || Number(w.value) < 20) {
+        throw Error("Файл содержит некорректное измерение веса.");
+      }
+    }
+    if (data.customFoods !== undefined &&
+      (!Array.isArray(data.customFoods) || data.customFoods.length > 5000 ||
+        data.customFoods.some(x => !x || typeof x.name !== "string" ||
+          !x.name.trim() || x.name.length > 100 ||
+          !["kcal", "protein", "fat", "carbs"].every(k => goodNumber(x[k], 100000))))) {
+      throw Error("В файле некорректный список личных продуктов.");
+    }
+    if (data.recipeFavorites !== undefined &&
+      (!Array.isArray(data.recipeFavorites) ||
+        data.recipeFavorites.some(x => typeof x !== "string" || x.length > 200))) {
+      throw Error("В файле некорректный список избранных рецептов.");
+    }
+    if (data.favorites !== undefined &&
+      (!Array.isArray(data.favorites) ||
+        data.favorites.some(x => !x || typeof x.name !== "string" || !x.name.trim()))) {
+      throw Error("В файле некорректное избранное.");
+    }
+    return true;
+  }
   function hasValidDate(v) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || ""));
     if (!m) return false;
@@ -365,7 +417,7 @@
         const file = input.files[0];
         if (file.size > 30000000) throw Error("Файл слишком большой");
         const parsed = JSON.parse(await file.text());
-        if (!isValidModel(parsed)) throw Error("Неверный формат резервной копии");
+        validateBackup(parsed);
         if (!confirm("Заменить дневник содержимым выбранного файла? Перед этим сохрани текущий дневник кнопкой «Скачать JSON».")) return;
         const old = localStorage.getItem(KEY);
         if (old && old.length < 350000) {
@@ -387,7 +439,8 @@
     let snap = null;
     try { snap = JSON.parse(localStorage.getItem(BACKUP_KEY) || "null"); }
     catch (_) {}
-    if (!isValidModel(snap)) return alert("Автокопия недоступна. Можно восстановить данные из JSON.");
+    try { validateBackup(snap); }
+    catch (_) { return alert("Автокопия повреждена или несовместима. Попробуй восстановить JSON."); }
     if (!confirm("Восстановить автокопию? Текущие записи будут заменены. Сначала скачай JSON, если они нужны.")) return;
     try {
       localStorage.setItem(KEY, JSON.stringify(snap));
@@ -419,6 +472,7 @@
   window.v12RemoveWeight = removeWeight12;
   window.v12RestoreAutoBackup = restoreAutoBackup;
 
+  window.v12ValidateBackup = validateBackup;
   window.v12Commit = commit;
   checkStorage();
   render = render12;
