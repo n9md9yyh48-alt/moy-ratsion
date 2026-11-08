@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js"];
+const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -61,10 +61,13 @@ function environment(seed = initialData()) {
 test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
-    "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
+    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
+  assert.match(serviceWorker, /photo-safe\.js/);
+  assert.match(serviceWorker, /meal-builder\.js/);
   assert.match(serviceWorker, /my-foods\.js/);
 });
 
@@ -215,6 +218,62 @@ test("rejects bad backup JSON without replacing existing records", () => {
   invalidWeight.weights[0].value = -5;
   assert.throws(() => env.context.window.v12ValidateBackup(invalidWeight), /некорректное измерение веса/);
   assert.equal(env.state.get("moy-ratsion-v1"), original);
+});
+
+test("ingredient builder calculates and persists a mixed meal", async () => {
+  const env = environment();
+  env.run("openMeal()");
+  const foods = env.context.window.vNextFoodCatalog();
+  const rice = foods.findIndex(x => x.name === "Рис варёный");
+  const chicken = foods.findIndex(x => x.name === "Куриная грудка готовая");
+  assert.ok(rice >= 0 && chicken >= 0);
+  env.context.window.vBuildChoose("catalog", rice);
+  env.element("builderGrams").value = "150";
+  env.context.window.vBuildAdd();
+  env.context.window.vBuildChoose("catalog", chicken);
+  env.element("builderGrams").value = "100";
+  env.context.window.vBuildAdd();
+  env.element("builderDishName").value = "Курица с рисом";
+  env.context.window.vBuildApply();
+  assert.equal(Number(env.element("mealKcal").value), 360);
+  assert.equal(Number(env.element("mealCarbs").value), 42.3);
+  env.element("mealDate").value = iso();
+  env.element("mealType").value = "Обед";
+  await env.element("mealForm").onsubmit({preventDefault() {}});
+  const last = env.read().meals.at(-1);
+  assert.equal(last.name, "Курица с рисом");
+  assert.equal(last.ingredients.length, 2);
+  assert.equal(last.ingredients[0].grams, 150);
+  assert.equal(env.context.window.v12ValidateBackup(env.read()), true);
+});
+
+test("saved ingredient breakdown remains editable", async () => {
+  const seed = initialData();
+  seed.meals[0].ingredients = [{
+    name:"Рис варёный", type:"Еда", grams:150, kcal:130, protein:2.7, fat:0.3, carbs:28.2
+  }];
+  const env = environment(seed);
+  env.context.window.v12EditMeal(0);
+  assert.match(env.element("builderParts").innerHTML, /Рис варёный/);
+  await env.element("mealForm").onsubmit({preventDefault() {}});
+  assert.equal(env.read().meals[0].ingredients[0].grams, 150);
+});
+
+test("photo validator rejects unsupported and oversized images", async () => {
+  const env = environment();
+  const validate = env.context.window.vPhotoValidate;
+  assert.equal(validate({type:"image/jpeg",size:1024,name:"dish.jpg"}), true);
+  assert.throws(() => validate({type:"image/svg+xml",size:1024,name:"dish.svg"}), /JPEG/);
+  assert.throws(() => validate({type:"image/jpeg",size:26*1024*1024,name:"dish.jpg"}), /25 МБ/);
+  await assert.rejects(env.run("shrink({type:'image/svg+xml',size:100,name:'dish.svg'})"), /JPEG/);
+  assert.equal(env.read().meals.length, 1);
+});
+
+test("malformed ingredient backup cannot replace the diary", () => {
+  const env = environment();
+  const data = initialData();
+  data.meals[0].ingredients = [{name:"Соль",grams:-40,kcal:0,protein:0,fat:0,carbs:0}];
+  assert.throws(() => env.context.window.v12ValidateBackup(data), /некорректный состав блюда/);
 });
 
 test("report display and recipe favorites do not publish personal data", () => {
