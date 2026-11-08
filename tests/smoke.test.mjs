@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "ai-config.js", "ai-client.js"];
+const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "ai-config.js", "ai-client.js", "coach-client.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -70,7 +70,7 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","aiAnalyzePhoto","aiPhotoStatus","aiPhotoResult","aiPhotoResultText","aiApplyEstimate"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","aiAnalyzePhoto","aiPhotoStatus","aiPhotoResult","aiPhotoResultText","aiApplyEstimate","coachMessages","coachText","coachShareWeek","coachSend","coachClear","coachStatus"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
@@ -79,6 +79,7 @@ test("all scripts parse and UI contains the required controls", () => {
   assert.match(serviceWorker, /my-foods\.js/);
   assert.match(serviceWorker, /ai-config\.js/);
   assert.match(serviceWorker, /ai-client\.js/);
+  assert.match(serviceWorker, /coach-client\.js/);
 });
 
 test("opens existing data without a migration or overwriting photos", () => {
@@ -335,6 +336,50 @@ test("AI analysis is opt-in, requires a photo, and never auto-saves meal data", 
   assert.equal(env.element("mealKcal").value,400);
   assert.equal(env.element("mealProtein").value,35);
   assert.equal(env.read().meals.length,1);
+});
+
+test("only OpenAI assistant is shown and remains disabled without backend", () => {
+  const env=environment();
+  assert.equal(env.element("coachSend").disabled,true);
+  assert.equal(env.element("coachText").disabled,true);
+  assert.match(env.element("coachStatus").textContent,/пока не подключён/);
+  env.run("tab('coach')");
+  assert.equal(env.element("heading").textContent,"ИИ-помощник 🤖");
+  assert.equal(env.read().meals.length,1);
+});
+
+test("chat sends only typed text by default, not local diary data", async()=>{
+  const requests=[];
+  const env=environment(initialData(),{
+    endpoint:"https://secure.example/api/analyze-meal",
+    token:"a".repeat(40),
+    fetch:async(url,options)=>{
+      requests.push({url,payload:JSON.parse(options.body)});
+      return {ok:true,json:async()=>({
+        reply:"Попробуй рис с овощами.",source:"openai",requires_confirmation:true
+      })};
+    }
+  });
+  assert.equal(env.element("coachSend").disabled,false);
+  env.element("coachText").value="Что приготовить из риса?";
+  await env.element("coachSend").onclick();
+  assert.equal(requests.length,1);
+  assert.equal(requests[0].url,"https://secure.example/api/coach");
+  assert.equal(requests[0].payload.consent,true);
+  assert.equal(requests[0].payload.week_summary,undefined);
+  assert.doesNotMatch(JSON.stringify(requests[0].payload),/Яйцо/);
+  assert.match(env.element("coachMessages").innerHTML,/Попробуй рис с овощами/);
+  assert.equal(env.read().meals.length,1);
+  env.element("coachShareWeek").checked=true;
+  env.element("coachText").value="Какой у меня итог за неделю?";
+  await env.element("coachSend").onclick();
+  assert.equal(requests.length,2);
+  assert.equal(requests[1].payload.share_summary,true);
+  assert.equal(requests[1].payload.week_summary.kcal_total,160);
+  assert.equal(requests[1].payload.week_summary.days_logged,1);
+  assert.doesNotMatch(JSON.stringify(requests[1].payload),/Яйцо|base64/);
+  env.element("coachClear").onclick();
+  assert.match(env.element("coachMessages").innerHTML,/Здесь появится диалог/);
 });
 
 test("report display and recipe favorites do not publish personal data", () => {
