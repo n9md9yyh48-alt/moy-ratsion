@@ -200,6 +200,23 @@ test("save, find, recalculate, and remove personal food templates", () => {
   assert.equal(env.read().customFoods.length, 0);
 });
 
+test("rejects bad backup JSON without replacing existing records", () => {
+  const env = environment();
+  const backup = initialData();
+  assert.equal(env.context.window.v12ValidateBackup(backup), true);
+  const original = env.state.get("moy-ratsion-v1");
+  const bad = structuredClone(backup);
+  bad.meals[0].date = "2026-02-31";
+  assert.throws(() => env.context.window.v12ValidateBackup(bad), /некорректную запись о еде/);
+  const badPhoto = structuredClone(backup);
+  badPhoto.meals[0].photo = "https://example.com/tracking.jpg";
+  assert.throws(() => env.context.window.v12ValidateBackup(badPhoto), /недопустимое фото/);
+  const invalidWeight = structuredClone(backup);
+  invalidWeight.weights[0].value = -5;
+  assert.throws(() => env.context.window.v12ValidateBackup(invalidWeight), /некорректное измерение веса/);
+  assert.equal(env.state.get("moy-ratsion-v1"), original);
+});
+
 test("report display and recipe favorites do not publish personal data", () => {
   assert.match(source["app.js"], /moy-ratsion-v1/);
   assert.match(html, /Версия 1\.2/);
