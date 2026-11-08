@@ -239,6 +239,8 @@
     $("mealForm").reset();
     $("mealDialogTitle").textContent = item ? "Редактировать запись" : "Добавить еду или напиток";
     $("existingPhoto").classList.toggle("hide", !item || !item.photo);
+    $("removePhotoWrap").classList.toggle("hide", !item || !item.photo);
+    $("removeMealPhoto").checked = false;
     $("mealDate").value = item ? item.date : selectedDate;
     if (item) {
       $("mealType").value = item.type;
@@ -273,7 +275,7 @@
       protein: Number($("mealProtein").value),
       fat: Number($("mealFat").value),
       carbs: Number($("mealCarbs").value),
-      photo: photo || (editMealIndex === null ? null : db.meals[editMealIndex].photo || null)
+      photo: photo || ($("removeMealPhoto").checked ? null : (editMealIndex === null ? null : db.meals[editMealIndex].photo || null))
     };
     if (Object.keys(item).some(k => ["kcal", "protein", "fat", "carbs"].includes(k) &&
       (!Number.isFinite(item[k]) || item[k] < 0))) return alert("Проверь калории и БЖУ");
