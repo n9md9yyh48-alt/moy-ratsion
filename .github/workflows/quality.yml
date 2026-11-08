@@ -14,5 +14,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check offline application
-        run: node --test tests/smoke.test.mjs
+      - name: Check offline application and protected AI backend
+        run: node --test tests/*.test.mjs
