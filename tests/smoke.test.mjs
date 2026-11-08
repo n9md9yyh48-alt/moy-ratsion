@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "features-v12.js", "extras.js"];
+const files = ["app.js", "features-v12.js", "recipes-extra.js", "extras.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -64,6 +64,7 @@ test("all scripts parse and UI contains the required controls", () => {
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
+  assert.match(serviceWorker, /recipes-extra\.js/);
 });
 
 test("opens existing data without a migration or overwriting photos", () => {
@@ -134,6 +135,15 @@ test("failed quota write leaves the existing diary intact", () => {
   env.context.window.vNextCopyYesterday();
   assert.equal(env.state.get("moy-ratsion-v1"), before);
   assert.ok(env.alerts.some(x => x.includes("Не удалось сохранить")));
+});
+
+test("recipe book has 100 items and pages through results", () => {
+  const env = environment();
+  assert.equal(env.run("recipes.length"), 100);
+  env.run("renderRecipes()");
+  assert.match(env.element("recipeCount").textContent, /Найдено: 100 · показано: 20/);
+  env.context.window.vNextMoreRecipes();
+  assert.match(env.element("recipeCount").textContent, /показано: 40/);
 });
 
 test("report display and recipe favorites do not publish personal data", () => {
