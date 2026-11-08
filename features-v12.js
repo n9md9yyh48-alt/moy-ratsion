@@ -297,6 +297,7 @@
     const item = editMealIndex === null ? null : db.meals[editMealIndex];
     $("mealForm").reset();
     if (typeof window.vPhotoResetPreview === "function") window.vPhotoResetPreview();
+    if (typeof window.vAIReset === "function") window.vAIReset();
     $("mealDialogTitle").textContent = item ? "Редактировать запись" : "Добавить еду или напиток";
     $("existingPhoto").classList.toggle("hide", !item || !item.photo);
     $("removePhotoWrap").classList.toggle("hide", !item || !item.photo);
