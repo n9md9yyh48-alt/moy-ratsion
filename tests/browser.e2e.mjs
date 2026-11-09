@@ -179,3 +179,44 @@ test("offline PWA shell stays available after service worker installs",async()=>
     assert.equal(await page.locator("#home").isVisible(),true);
   }finally{await context.close();}
 });
+
+test("dark-gold 3.0 dashboard reflects real local meals at 390px and 320px without changing data",async()=>{
+  const {context,page}=await pageFor();
+  const errors=[];
+  page.on("pageerror",e=>errors.push(e.message));
+  const seed={settings:{calories:2500,start:115,target:100},weights:[],meals:[
+    {id:"visual-meal-1",date:"2026-11-09",type:"Завтрак",
+      name:"Омлет с овощами",kcal:300,protein:21,fat:18,carbs:13,photo:null},
+    {id:"visual-meal-2",date:"2026-11-09",type:"Обед",
+      name:"Курица с рисом",kcal:450,protein:35,fat:12,carbs:48,photo:null}
+  ]};
+  try{
+    await page.goto(base,{waitUntil:"load"});
+    await page.evaluate(data=>localStorage.setItem("moy-ratsion-v1",JSON.stringify(data)),seed);
+    await page.reload({waitUntil:"load"});
+    await page.locator("#selectedDate").fill("2026-11-09");
+    await page.locator("#selectedDate").dispatchEvent("change");
+    assert.equal((await page.locator("#todayKcal").textContent()).trim(),"750");
+    assert.equal((await page.locator("#goalKcal").textContent()).trim(),"2500");
+    assert.equal(await page.locator("#calorieRing").getAttribute("aria-valuenow"),"750");
+    assert.match(await page.locator("#calorieRing").getAttribute("style"),/--ring-percent: 30\.00%/);
+    assert.match(await page.locator("#kcalDelta").textContent(),/Осталось 1\s?750 ккал/);
+    assert.equal(await page.locator("#meals .meal-entry").count(),2);
+    assert.equal(await page.locator("#meals .meal-thumb").count(),2);
+    assert.match(await page.locator("#meals").innerText(),/Курица с рисом/);
+    assert.match(await page.locator("#meals").innerText(),/Б 35 г/);
+    assert.ok(await page.locator("#protBar").evaluate(el=>parseFloat(el.style.width)>0));
+    assert.ok(await page.locator("#fatBar").evaluate(el=>parseFloat(el.style.width)>0));
+    assert.ok(await page.locator("#carbBar").evaluate(el=>parseFloat(el.style.width)>0));
+    assert.equal(await page.locator("#theme-nonexistent").count(),0);
+    for(const width of [390,320]){
+      await page.setViewportSize({width,height:844});
+      assert.equal(await page.locator("#calorieRing").isVisible(),true);
+      const bounds=await page.evaluate(()=>({w:innerWidth,scroll:document.documentElement.scrollWidth}));
+      assert.ok(bounds.scroll<=bounds.w+1,"No horizontal overflow at "+width+"px, got "+JSON.stringify(bounds));
+    }
+    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem("moy-ratsion-v1")));
+    assert.deepEqual(saved.meals,seed.meals);
+    assert.deepEqual(errors,[]);
+  }finally{await context.close();}
+});
