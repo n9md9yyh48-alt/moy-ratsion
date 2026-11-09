@@ -1,0 +1,29 @@
+# Мой рацион: статическое PWA. Никаких платных API и сборки.
+# Подключить GitHub n9md9yyh48-alt/moy-ratsion к Netlify (main).
+[build]
+  publish = "."
+
+# Чтобы обновления офлайн-приложения не застревали в кэше.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
