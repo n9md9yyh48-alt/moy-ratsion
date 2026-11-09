@@ -475,6 +475,24 @@ test("first-time offline worker install does not advertise a needless refresh",(
 
 test("report display and recipe favorites do not publish personal data", () => {
   assert.match(source["app.js"], /moy-ratsion-v1/);
-  assert.match(html, /Версия 2\.0 RC/);
+  assert.match(html, /Версия 3\.0 beta/);
   assert.ok(!source["extras.js"].includes("sk-"));
+});
+
+test("new dark-gold UI is offline-only and preserves the original diary model",()=>{
+  const css=fs.readFileSync(new URL("../theme-v3.css",import.meta.url),"utf8");
+  const layer=fs.readFileSync(new URL("../ui-v3.js",import.meta.url),"utf8");
+  assert.match(html,/href="theme-v3\.css"/);
+  assert.match(html,/src="ui-v3\.js"/);
+  for(const id of ["calorieRing","kcalDelta","nutritionDate","protBar","fatBar","carbBar"]){
+    assert.match(html,new RegExp('id="'+id+'"'));
+  }
+  assert.match(html,/id="chatMealCode"/);
+  assert.match(serviceWorker,/moy-ratsion-v16/);
+  assert.match(serviceWorker,/theme-v3\.css/);
+  assert.match(serviceWorker,/ui-v3\.js/);
+  assert.match(css,/--gold:/);
+  assert.match(css,/color-scheme:dark/);
+  assert.doesNotMatch(layer,/localStorage\.setItem|fetch\(/);
+  assert.doesNotThrow(()=>new vm.Script(layer));
 });
