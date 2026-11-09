@@ -5,6 +5,10 @@
   "use strict";
   const el=id=>document.getElementById(id);
   const prefix="meal:";
+  const isIosBrowser=()=>/iPad|iPhone|iPod/.test(navigator?.userAgent||"") &&
+    !(navigator.standalone===true ||
+      (typeof matchMedia==="function"&&matchMedia("(display-mode: standalone)").matches));
+  const status=message=>{const elStatus=el("chatMealStatus");if(elStatus)elStatus.textContent=message;};
   function decode(code){
     let value=String(code||"").trim();
     const marker=value.indexOf("#meal=");
@@ -43,9 +47,11 @@
       alert("Эта запись уже есть в дневнике. Повторно не добавляю.");
       return false;
     }
+    const iosNote=isIosBrowser() ?
+      "\n\n⚠️ Ссылка открыта в браузере iPhone. Если твой дневник на экране Домой, Safari может сохранить запись ОТДЕЛЬНО. Скопируй код и вставь внутри установленного приложения." : "";
     if(!confirm("Добавить в локальный дневник «"+meal.name+"» на "+meal.date+
       "?\n≈ "+meal.kcal+" ккал · Б "+meal.protein+" · Ж "+meal.fat+
-      " · У "+meal.carbs+" г\n\nЗначения приблизительные. Фото не переносится."))return false;
+      " · У "+meal.carbs+" г\n\nЗначения приблизительные. Фото не переносится."+iosNote))return false;
     if(!window.v12Commit)return alert("Сохранение дневника недоступно."),false;
     const result=window.v12Commit(next=>{
       if(!next.meals.some(x=>x.id===meal.id))next.meals.push(meal);
@@ -67,12 +73,36 @@
     const input=el("chatMealCode");
     if(input&&save(input.value))input.value="";
   }
+  async function copyCode(){
+    const input=el("chatMealCode");
+    if(!input||!input.value.trim()){status("Сначала вставь код записи.");return false;}
+    try{verified(decode(input.value));}
+    catch(_){status("Этот код некорректен. Проверь его перед копированием.");return false;}
+    try{
+      if(!navigator.clipboard?.writeText)throw Error("Clipboard unavailable");
+      const str=input.value.trim();
+      await navigator.clipboard.writeText(str.startsWith("meal:")?str:"meal:"+str.replace(/^.*#meal=/,""));
+      status("✓ Код скопирован. Открой установленный «Мой рацион» и вставь его в разделе «Сегодня».");
+      return true;
+    }catch(_){
+      if(typeof input.focus==="function")input.focus();
+      if(typeof input.select==="function")input.select();
+      status("Не удалось скопировать автоматически. Выдели и скопируй код вручную.");
+      return false;
+    }
+  }
+  window.vChatMealCopy=copyCode;
   window.vChatMealImport=fromPaste;
   window.vChatMealParse=code=>verified(decode(code));
   function processLink(){
     if(typeof location==="undefined"||typeof location.hash!=="string"||
        !location.hash.startsWith("#meal="))return;
     const code=location.hash;
+    const input=el("chatMealCode");
+    if(input)input.value="meal:"+code.slice(6);
+    const details=el("chatImportDetails");
+    if(details)details.open=true;
+    if(isIosBrowser())status("Если ссылка открыта в Safari, запись может попасть не в установленный дневник. Скопируй код для переноса.");
     // Remove the fragment from browser history regardless of confirmation;
     // avoids repeated prompting and accidental exposure in screen sharing.
     if(typeof history!=="undefined"&&typeof history.replaceState==="function"){
