@@ -145,3 +145,154 @@ dialog .food-picker{background:#202126}
   .meal-entry .row.between{flex-wrap:wrap}
 }
 @media(prefers-reduced-motion:reduce){.macro-track span{transition:none}.btn:active{transform:none}}
+
+
+/* 3.0 visual refinement — rich, calm detail without external artwork. */
+body{
+  background:
+    radial-gradient(ellipse at 50% -3%,rgba(146,99,43,.15),transparent 40%),
+    radial-gradient(ellipse at 5% 58%,rgba(57,51,48,.15),transparent 42%),
+    #0b0c0e;
+}
+.app-header{padding:3px 3px 0}
+.app-header .brand{letter-spacing:-.8px;background:linear-gradient(95deg,#fff8e9 15%,#edc783 100%);color:transparent;-webkit-background-clip:text;background-clip:text}
+.app-logo{border-color:#aa8244;box-shadow:inset 0 0 12px #d4a85611,0 6px 25px #cd9d4317}
+.app-logo svg{filter:drop-shadow(0 1px 6px #ecc26e70)}
+.header-settings{transition:border-color .2s,background .2s}
+.header-settings:active{background:#383023;border-color:var(--gold)}
+#home>.card.nutrition-card{order:1}
+#home>.card.meal-list-card{order:2}
+#home>.card.seven-day-card{order:3}
+#home>.card.quick-card{order:4}
+#home>.card.calendar-card{order:5}
+#home>.card.weight-card{order:6}
+#home>.note{order:7}
+.card{border-color:#353237;box-shadow:0 12px 34px #0004,inset 0 1px 0 #ffffff07}
+.section-eyebrow{display:block;color:#b49a6c;font-size:10px;font-weight:850;letter-spacing:2.1px;margin-bottom:5px}
+.section-eyebrow span{font-size:12px;color:#ebc779}
+.nutrition-card{
+  position:relative;overflow:hidden;isolation:isolate;
+  background:
+    radial-gradient(ellipse at 89% -8%,#6b46242a 0%,transparent 46%),
+    radial-gradient(ellipse at -10% 60%,#563a302b,transparent 50%),
+    linear-gradient(145deg,#222023,#121316 80%);
+  border:1px solid #6c5037;
+  box-shadow:0 10px 33px #0007,inset 0 1px 0 #ffe4af1c;
+}
+.nutrition-card:before{
+  content:"";position:absolute;pointer-events:none;z-index:0;
+  inset:0;
+  background:linear-gradient(125deg,#fbe9c00b,transparent 33%,transparent 75%,#f3c67908);
+}
+.nutrition-card>*{position:relative;z-index:1}
+.nutrition-title{align-items:center;margin-bottom:20px}
+.overview-heading b{display:block;font-size:20px;line-height:1.2;letter-spacing:-.4px}
+.nutrition-title #nutritionDate{
+  border-radius:30px;background:#3f31242d;border:1px solid #59442d;
+  color:#e6c996;padding:7px 10px;line-height:1.1;white-space:nowrap;font-weight:700;
+}
+.calorie-ring{
+  padding:14px;
+  background:conic-gradient(from 210deg,var(--ring-fill) 0 var(--ring-percent),#342d31 var(--ring-percent) 100%);
+  box-shadow:0 0 0 1px #9e783a45,0 0 36px #e5b66b20,0 14px 28px #0008;
+}
+.calorie-ring:after{border-color:#f2d59735}
+.ring-inner{box-shadow:inset 0 0 0 1px #eec07619,0 0 14px #0008}
+.ring-inner .big{font-weight:850;letter-spacing:-1.7px}
+.ring-goal{font-size:12px}
+.macro-track{background:#3a383c}
+.macro-track span{box-shadow:0 0 10px currentColor}
+.macro-protein .macro-track span{background:linear-gradient(90deg,#219e6f,#6debb6)}
+.macro-fat .macro-track span{background:linear-gradient(90deg,#c95458,#ff968a)}
+.macro-carb .macro-track span{background:linear-gradient(90deg,#cb843b,#f4c777)}
+.nutrition-delta{box-shadow:inset 0 1px 0 #ffffff08}
+.hero-actions{display:flex;gap:8px;margin:18px 0 1px}
+.hero-actions .btn{flex:1;min-width:0;white-space:nowrap;min-height:47px;font-size:13px;gap:5px;padding:10px 9px}
+.hero-primary{
+  background:linear-gradient(120deg,#f8dc9a,#e7b867 54%,#d69a43);
+  color:#1f160d;box-shadow:0 6px 20px #dca54c36,inset 0 1px 0 #fff6d5a0;
+}
+.hero-primary span{font-size:21px;font-weight:500;line-height:12px}
+.hero-import{background:#2a2828;color:#f0d5a4;border:1px solid #69503b;box-shadow:none}
+.hero-import span{font-size:20px;line-height:16px}
+.nutrition-card #remainingKcal{padding-top:14px;border-top-color:#514337;line-height:1.5}
+.nutrition-card #foodDrinks{color:#b9aca1}
+/* Meal gallery: photos are existing on-device images, not stock content. */
+.meal-list-card{background:linear-gradient(157deg,#1d1e22,#141417)}
+.meal-section-head{margin-bottom:13px;flex-wrap:nowrap}
+.meal-section-head h2{margin:0;font-size:21px}
+.meal-count{font-size:12px;color:#e8c78e;background:#40342670;border:1px solid #5a4835;border-radius:30px;padding:7px 10px;white-space:nowrap}
+#meals>.meal-entry{background:linear-gradient(116deg,#292629,#1a1b20);border-color:#403a39;box-shadow:inset 0 1px 0 #ffffff08}
+#meals>.meal-entry:focus-within{border-color:#b89361}
+.meal-thumb{
+  background:radial-gradient(circle at 28% 22%,#71513b,#39302e 65%,#2c292b);
+  border:1px solid #8a624e4d;
+  box-shadow:0 6px 12px #0004;
+}
+.meal-entry-content b{font-weight:720;letter-spacing:-.15px;overflow-wrap:anywhere}
+.meal-entry .meal-card-label{text-transform:uppercase;letter-spacing:.8px;font-size:10px;color:#c7a16e;font-weight:700}
+.meal-entry .meal-meta{font-size:13px;margin-top:5px}
+.meal-entry .meal-tools{justify-content:flex-start}
+.meal-entry .edit-actions{margin-left:auto}
+.meal-entry .btn{box-shadow:none}
+.meal-entry .meal-tools .btn{border-radius:10px}
+.meal-entry .meal-macros{gap:7px 11px;margin-top:6px}
+/* Mini chart faithfully reflects saved meals over the selected seven days. */
+.seven-day-card{
+  background:linear-gradient(145deg,#1b1d21,#141417);
+  border-color:#3b3738;
+}
+.week-head{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:13px}
+.week-head h2{font-size:19px;margin:0}
+.week-reports{min-height:37px;padding:8px 12px!important;font-size:12px!important;white-space:nowrap;box-shadow:none}
+.mini-week-bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;min-height:131px}
+.mini-week-day{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;min-width:0;padding:7px 2px 6px;border:1px solid transparent;border-radius:13px}
+.mini-week-day.selected{background:#4b3b2a68;border-color:#91704485}
+.mini-week-day .mini-week-value{color:#d6c7ad;font-size:10px;font-weight:740;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mini-week-day.empty .mini-week-value{color:#746d65}
+.mini-week-day .mini-week-track{display:flex;justify-content:flex-end;align-items:flex-end;width:15px;height:78px;border-radius:7px;background:#28282b;overflow:hidden}
+.mini-week-day .mini-week-bar{width:100%;min-height:3px;display:block;background:linear-gradient(0deg,#bd7d38,#f0cc7f);border-radius:6px 6px 3px 3px;box-shadow:0 -3px 12px #e4af5844;transition:height .3s ease}
+.mini-week-day.over .mini-week-bar{background:linear-gradient(0deg,#bd5656,#f39a81)}
+.mini-week-day.empty .mini-week-bar{background:#4b4645;box-shadow:none}
+.mini-week-label{font-size:11px;color:#b4aca5;font-weight:650}
+.mini-week-number{font-size:10px;color:#7e7773;line-height:1}
+.mini-week-day.selected .mini-week-number,.mini-week-day.selected .mini-week-label{color:var(--gold2)}
+.week-legend{border-top:1px solid #393336;padding-top:11px;margin-top:10px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:#aaa3a3;font-size:11px}
+.legend-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin-right:5px}
+.quick-card summary{padding:5px 0;color:#f2d6a0}
+.quick-card #chatImportDetails[open]{border-color:#766143;background:#252222}
+.calendar-card .calendar-grid{gap:6px}
+.calendar-card .calendar-day{transition:background .18s ease,border-color .18s ease}
+.calendar-card .calendar-day.has-meals:not(.selected){background:#302e30}
+.calendar-card .calendar-day.selected{box-shadow:0 0 0 2px #a9803e43}
+.calendar-card #dayCaption{color:#c8ac7b}
+/* Navigation icons use local SVG shapes for consistent weight on iOS & Android. */
+.tabs{-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);background:#141318f4}
+.tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:9px 3px 6px;min-width:0;max-width:156px;font-size:10px;color:#ada7a3;line-height:1.1}
+.tabs button.active{color:#ffdb98}
+.tab-icon{width:23px;height:23px;display:inline-flex;align-items:center;justify-content:center}
+.tab-icon svg{width:22px;height:22px;stroke:currentColor;transition:transform .18s ease}
+.tabs button.active .tab-icon svg{filter:drop-shadow(0 0 6px #edba5d60);transform:translateY(-1px)}
+.tab-label{font-weight:700;white-space:nowrap}
+.tabs button.active:before{left:34%;right:34%;background:linear-gradient(90deg,#be8d43,#f9d995)}
+@media(max-width:390px){
+  .app-header .brand{font-size:21px}
+  .nutrition-card{padding:16px}
+  .nutrition-title{margin-bottom:15px}
+  .overview-heading b{font-size:18px}
+  .calorie-ring{padding:12px}
+  .mini-week-bars{gap:2px}
+  .mini-week-day{padding:7px 1px 6px}
+  .mini-week-day .mini-week-value{font-size:9px}
+  .meal-entry .meal-tools .btn{font-size:11px;padding:6px 7px}
+  .week-head h2{font-size:18px}
+}
+@media(max-width:345px){
+  .hero-actions{flex-wrap:wrap}
+  .hero-actions .btn{flex:1 0 100%}
+  .week-reports{font-size:10px!important;padding:7px 8px!important}
+  .tabs button{font-size:9px;padding:9px 2px 6px}
+}
+@media(prefers-reduced-motion:reduce){
+  .mini-week-day .mini-week-bar,.tab-icon svg,.calendar-card .calendar-day{transition:none}
+}
