@@ -62,8 +62,10 @@ test("home, recipes and free ChatGPT sharing are visible without paid AI",async(
     assert.ok((await page.locator("#recipeList .recipe").count())>=1);
     await page.locator('button[data-tab="share"]').click();
     assert.equal(await page.locator("#share").isVisible(),true);
+    await page.locator("#chatShareDate").fill("2026-11-09");
+    await page.locator("#chatShareDate").dispatchEvent("change");
     await page.locator('button[onclick="vShareChatDay()"]').click();
-    assert.match(await page.locator("#chatSharePreview").inputValue(),/записей нет/);
+    assert.match(await page.locator("#chatSharePreview").inputValue(),/2026-11-09.*записей нет/);
     assert.equal(await page.locator("#chatSharePreview").isVisible(),true);
     assert.equal(await page.locator("#coach").count(),0);
     assert.equal(api.length,0);
