@@ -221,6 +221,13 @@ test("dark-gold 3.0 dashboard reflects real local meals at 390px and 320px witho
     assert.ok(await page.locator("#fatBar").evaluate(el=>parseFloat(el.style.width)>0));
     assert.ok(await page.locator("#carbBar").evaluate(el=>parseFloat(el.style.width)>0));
     assert.equal(await page.locator("#theme-nonexistent").count(),0);
+    const icons=await page.locator(".tabs .tab-icon svg").evaluateAll(nodes=>nodes.map(n=>{
+      const r=n.getBoundingClientRect();return {w:r.width,h:r.height};
+    }));
+    assert.equal(icons.length,5);
+    assert.ok(icons.every(i=>i.w<=23&&i.h<=23),"Tabs must have 22 px vector icons: "+JSON.stringify(icons));
+    const tabsSize=await page.locator(".tabs").evaluate(el=>el.getBoundingClientRect().height);
+    assert.ok(tabsSize<=100,"Navigation must stay compact: "+tabsSize);
     for(const width of [390,320]){
       await page.setViewportSize({width,height:844});
       assert.equal(await page.locator("#calorieRing").isVisible(),true);
@@ -229,6 +236,33 @@ test("dark-gold 3.0 dashboard reflects real local meals at 390px and 320px witho
     }
     const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem("moy-ratsion-v1")));
     assert.deepEqual(saved.meals,seed.meals);
+    assert.deepEqual(errors,[]);
+  }finally{await context.close();}
+});
+
+
+test("iPhone navigation stays compact with an outdated stylesheet in cache",async()=>{
+  const {context,page}=await pageFor();
+  const errors=[];
+  page.on("pageerror",e=>errors.push(e.message));
+  try{
+    // Emulates a previously cached theme missing the new SVG navigation rules.
+    await page.route(/theme-v3\\.css(?:\\?|$)/,route=>route.fulfill({
+      status:200,contentType:"text/css",
+      body:"/* old cached theme without nav SVG dimensions */ .tabs{background:white}"
+    }));
+    await page.goto(base,{waitUntil:"load"});
+    for(const width of [390,320]){
+      await page.setViewportSize({width,height:844});
+      const icons=await page.locator(".tabs .tab-icon svg").evaluateAll(nodes=>nodes.map(n=>{
+        const box=n.getBoundingClientRect();return {width:box.width,height:box.height};
+      }));
+      assert.equal(icons.length,5);
+      assert.ok(icons.every(i=>i.width<=23&&i.height<=23),
+        "Oversized navigation icon at "+width+": "+JSON.stringify(icons));
+      const navHeight=await page.locator(".tabs").evaluate(el=>el.getBoundingClientRect().height);
+      assert.ok(navHeight<=88,"Navigation grew taller than 88px: "+navHeight);
+    }
     assert.deepEqual(errors,[]);
   }finally{await context.close();}
 });
