@@ -72,7 +72,7 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "appUpdateNotice","appUpdateButton","photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatMealPreview","chatImportDetails","chatSharePreview","chatShareStatus","remainingKcal"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "appUpdateNotice","appUpdateButton","photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatMealPreview","chatImportDetails","chatShareDate","chatSharePreview","chatShareStatus","remainingKcal"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
@@ -425,6 +425,22 @@ test("installed iPhone app does not show Safari storage warning on import",()=>{
   assert.equal(env.read().meals.length,2);
 });
 
+test("ChatGPT share date is visible and changing it invalidates a stale summary",()=>{
+  const env=environment(initialData("2026-11-09"));
+  env.context.window.v12SelectDay("2026-11-09");
+  env.run("tab('share')");
+  assert.equal(env.element("chatShareDate").value,"2026-11-09");
+  env.context.window.vShareChatDay();
+  assert.match(env.element("chatSharePreview").value,/2026-11-09/);
+  env.element("chatShareDate").value="2026-11-08";
+  env.context.window.vShareChatDateChanged();
+  assert.equal(env.element("chatSharePreview").value,"");
+  assert.equal(env.element("chatSharePreview").hidden,true);
+  env.context.window.vShareChatDay();
+  assert.match(env.element("chatSharePreview").value,/2026-11-08/);
+  assert.doesNotMatch(env.element("chatSharePreview").value,/2026-11-09/);
+});
+
 test("PWA update notice appears only when an existing service worker is replaced", async()=>{
   const handlers={};let checks=0,reloads=0;
   const serviceWorker={
@@ -459,6 +475,6 @@ test("first-time offline worker install does not advertise a needless refresh",(
 
 test("report display and recipe favorites do not publish personal data", () => {
   assert.match(source["app.js"], /moy-ratsion-v1/);
-  assert.match(html, /Версия 1\.2/);
+  assert.match(html, /Версия 2\.0 RC/);
   assert.ok(!source["extras.js"].includes("sk-"));
 });
