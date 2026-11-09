@@ -55,7 +55,7 @@
       const selected=el("selectedDate");
       if(selected){
         selected.value=meal.date;
-        if(typeof selected.onchange==="function")selected.onchange();
+        if(typeof selected.onchange==="function")selected.onchange({target:selected});
       }
       const status=el("chatMealStatus");
       if(status)status.textContent="✓ Добавлено в этот дневник: "+meal.name+
