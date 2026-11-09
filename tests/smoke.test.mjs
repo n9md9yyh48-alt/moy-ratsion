@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "chat-meal.js", "share-chat.js"];
+const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "chat-meal.js", "share-chat.js", "pwa-update.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -27,7 +27,7 @@ function environment(seed = initialData(), options = {}) {
   const canvas = new Proxy({}, {get: () => () => {}, set: () => true});
   function element(id) {
     if (!elements.has(id)) {
-      elements.set(id, {id, value: "", checked: false, files: [], innerHTML: "", textContent: "",
+      elements.set(id, {id, value: "", checked: false, hidden:id==="appUpdateNotice", files: [], innerHTML: "", textContent: "",
         style: {}, classList: {toggle() {}}, dataset: {}, reset() {},
         showModal() {this.open = true}, close() {this.open = false}, getContext() {return canvas}});
     }
@@ -46,11 +46,11 @@ function environment(seed = initialData(), options = {}) {
     removeItem: key => state.delete(key)
   };
   const sandbox = {
-    window: {}, document, localStorage, navigator: {userAgent:options.userAgent||"",standalone:!!options.standalone,clipboard:{writeText:async(value)=>{copied.push(value)}}},
+    window: {}, document, localStorage, navigator: {...(options.serviceWorker ? {serviceWorker:options.serviceWorker} : {}),userAgent:options.userAgent||"",standalone:!!options.standalone,clipboard:{writeText:async(value)=>{copied.push(value)}}},
     crypto: {randomUUID: () => "test-" + ++counter},
     alert: message => alerts.push(String(message)),
     confirm: message => {confirmations.push(String(message)); return true},
-    location: {reload() {},hash:options.hash||"",pathname:"/moy-ratsion/",search:""},
+    location: {reload() {if(options.onReload)options.onReload()},hash:options.hash||"",pathname:"/moy-ratsion/",search:""},
     history:{replaceState() {}}, URL: {createObjectURL: () => "blob:fake", revokeObjectURL() {}},
     Blob, Image: class {naturalWidth=1800; naturalHeight=1200;
       set src(_value) {Promise.resolve().then(() => this.onload?.());}}, setTimeout: () => {}, clearTimeout: () => {}, AbortController,
@@ -72,7 +72,7 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatMealPreview","chatImportDetails","chatSharePreview","chatShareStatus","remainingKcal"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "appUpdateNotice","appUpdateButton","photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatMealPreview","chatImportDetails","chatSharePreview","chatShareStatus","remainingKcal"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
@@ -80,6 +80,7 @@ test("all scripts parse and UI contains the required controls", () => {
   assert.match(serviceWorker, /meal-builder\.js/);
   assert.match(serviceWorker, /my-foods\.js/);
   assert.match(serviceWorker, /share-chat\.js/);
+  assert.match(serviceWorker, /pwa-update\.js/);
   assert.doesNotMatch(serviceWorker, /ai-client\.js|coach-client\.js|ai-config\.js/);
   assert.doesNotMatch(html, /id="coach"|data-tab="coach"|id="aiAnalyzePhoto"/);
   assert.match(serviceWorker, /chat-meal\.js/);
@@ -422,6 +423,38 @@ test("installed iPhone app does not show Safari storage warning on import",()=>{
   });
   assert.doesNotMatch(env.confirmations.at(-1),/Safari может сохранить/);
   assert.equal(env.read().meals.length,2);
+});
+
+test("PWA update notice appears only when an existing service worker is replaced", async()=>{
+  const handlers={};let checks=0,reloads=0;
+  const serviceWorker={
+    controller:{scriptURL:"/sw.js"},
+    addEventListener:(event,handler)=>{handlers[event]=handler;},
+    register:async()=>({}),
+    getRegistration:async()=>({update:async()=>{checks++;}})
+  };
+  const env=environment(initialData(),{serviceWorker,onReload:()=>{reloads++}});
+  assert.equal(env.element("appUpdateNotice").hidden,true);
+  assert.equal(typeof handlers.controllerchange,"function");
+  handlers.controllerchange();
+  assert.equal(env.element("appUpdateNotice").hidden,false);
+  assert.equal(env.read().meals.length,1);
+  env.element("appUpdateButton").onclick();
+  assert.equal(reloads,1);
+  assert.equal(env.read().meals.length,1);
+  assert.ok(checks<=1);
+});
+test("first-time offline worker install does not advertise a needless refresh",()=>{
+  const handlers={};
+  const serviceWorker={
+    controller:null,
+    addEventListener:(event,handler)=>{handlers[event]=handler;},
+    register:async()=>({}),
+    getRegistration:async()=>null
+  };
+  const env=environment(initialData(),{serviceWorker});
+  handlers.controllerchange();
+  assert.equal(env.element("appUpdateNotice").hidden,true);
 });
 
 test("report display and recipe favorites do not publish personal data", () => {
