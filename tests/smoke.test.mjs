@@ -46,7 +46,7 @@ function environment(seed = initialData(), options = {}) {
     removeItem: key => state.delete(key)
   };
   const sandbox = {
-    window: {}, document, localStorage, navigator: {clipboard:{writeText:async(value)=>{copied.push(value)}}},
+    window: {}, document, localStorage, navigator: {userAgent:options.userAgent||"",standalone:!!options.standalone,clipboard:{writeText:async(value)=>{copied.push(value)}}},
     crypto: {randomUUID: () => "test-" + ++counter},
     alert: message => alerts.push(String(message)),
     confirm: message => {confirmations.push(String(message)); return true},
@@ -72,7 +72,7 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatSharePreview","chatShareStatus"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatImportDetails","chatSharePreview","chatShareStatus","remainingKcal"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
@@ -380,6 +380,44 @@ test("URL fragment can offer a meal while leaving stored meals intact until conf
   assert.equal(env.read().meals.length,2);
   assert.match(env.confirmations.at(-1),/Добавить в локальный дневник/);
 });
+test("calorie remainder follows selected day, not only current date",()=>{
+  const seed=initialData("2026-11-09");
+  const env=environment(seed);
+  env.context.window.v12SelectDay("2026-11-09");
+  assert.match(env.element("remainingKcal").textContent,/2340 ккал/);
+  const item={id:"item2",date:"2026-11-09",type:"Обед",name:"Блин",kcal:2500,
+    protein:13,fat:20,carbs:100,photo:null};
+  env.context.window.v12Commit(next=>next.meals.push(item));
+  assert.match(env.element("remainingKcal").textContent,/выше ориентировочной цели/i);
+  env.context.window.v12SelectDay("2026-11-08");
+  assert.match(env.element("remainingKcal").textContent,/пока нет записей/i);
+});
+test("iPhone Safari import warns about separate PWA storage and keeps code to copy", async()=>{
+  const payload={v:1,id:"ios-breakfast",date:"2026-11-09",type:"Завтрак",
+    name:"Завтрак",kcal:1352,protein:58,fat:96,carbs:74};
+  const code=Buffer.from(JSON.stringify(payload),"utf8").toString("base64url");
+  const env=environment(initialData(),{
+    hash:"#meal="+code,userAgent:"Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X)"
+  });
+  assert.match(env.confirmations.at(-1),/Safari может сохранить запись ОТДЕЛЬНО/);
+  assert.equal(env.element("chatImportDetails").open,true);
+  assert.equal(env.element("chatMealCode").value,"meal:"+code);
+  const copied=await env.context.window.vChatMealCopy();
+  assert.equal(copied,true);
+  assert.equal(env.copied[0],"meal:"+code);
+  assert.equal(env.read().meals.length,2);
+});
+test("installed iPhone app does not show Safari storage warning on import",()=>{
+  const payload={v:1,id:"ios-installed",date:"2026-11-09",type:"Завтрак",
+    name:"Завтрак",kcal:300,protein:20,fat:10,carbs:10};
+  const env=environment(initialData(),{
+    hash:"#meal="+Buffer.from(JSON.stringify(payload),"utf8").toString("base64url"),
+    userAgent:"Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X)",standalone:true
+  });
+  assert.doesNotMatch(env.confirmations.at(-1),/Safari может сохранить/);
+  assert.equal(env.read().meals.length,2);
+});
+
 test("report display and recipe favorites do not publish personal data", () => {
   assert.match(source["app.js"], /moy-ratsion-v1/);
   assert.match(html, /Версия 1\.2/);
