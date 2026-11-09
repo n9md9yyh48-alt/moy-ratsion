@@ -1,5 +1,5 @@
 /* Мой рацион v1.2: обновление без застревания в старом офлайн-кэше */
-const CACHE = "moy-ratsion-v14";
+const CACHE = "moy-ratsion-v15";
 const ASSETS = ["./", "./index.html", "./app.js", "./photo-safe.js", "./features-v12.js", "./recipes-extra.js", "./extras.js", "./my-foods.js", "./meal-builder.js", "./chat-meal.js", "./share-chat.js", "./pwa-update.js",
   "./manifest.webmanifest", "./icon.svg"];
 
