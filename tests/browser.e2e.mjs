@@ -133,6 +133,38 @@ test("chat link in a home-screen-like PWA needs confirmation and ignores repeat 
     assert.ok(dialogs.some(x=>/уже есть/.test(x)));
   }finally{await context.close();}
 });
+test("JSON backup downloads and restores a verified diary on an isolated browser",async()=>{
+  const {context,page}=await pageFor({acceptDownloads:true});
+  const dialogs=[];
+  page.on("dialog",async d=>{dialogs.push(d.message());await d.accept();});
+  try{
+    await page.goto(base+"#meal="+code,{waitUntil:"load"});
+    await page.waitForFunction(()=>JSON.parse(localStorage.getItem("moy-ratsion-v1")||"null")?.meals?.length===1);
+    await page.locator('button[data-tab="reports"]').click();
+    const downloadEvent=page.waitForEvent("download");
+    await page.locator('button[onclick="exportData()"]').click();
+    const file=await downloadEvent;
+    assert.match(file.suggestedFilename(),/^moy-ratsion-backup-.*\.json$/);
+    const backup=await readFile(await file.path(),"utf8");
+    const parsed=JSON.parse(backup);
+    assert.equal(parsed.meals.length,1);
+    assert.equal(parsed.meals[0].id,"chat-"+meal.id);
+    assert.equal(parsed.meals[0].kcal,123);
+    await page.evaluate(()=>localStorage.removeItem("moy-ratsion-v1"));
+    await page.reload({waitUntil:"load"});
+    assert.equal(await page.evaluate(()=>localStorage.getItem("moy-ratsion-v1")),null);
+    await page.locator('button[data-tab="settings"]').click();
+    const chooserEvent=page.waitForEvent("filechooser");
+    await page.locator('button[onclick="importData()"]').click();
+    const chooser=await chooserEvent;
+    await chooser.setFiles({name:"backup.json",mimeType:"application/json",buffer:Buffer.from(backup)});
+    await page.waitForFunction(()=>JSON.parse(localStorage.getItem("moy-ratsion-v1")||"null")?.meals?.length===1);
+    const restored=await page.evaluate(()=>JSON.parse(localStorage.getItem("moy-ratsion-v1")));
+    assert.equal(restored.meals[0].id,"chat-"+meal.id);
+    assert.ok(dialogs.some(x=>/Заменить дневник/.test(x)));
+  }finally{await context.close();}
+});
+
 test("offline PWA shell stays available after service worker installs",async()=>{
   const {context,page}=await pageFor({serviceWorkers:"allow"});
   try{
