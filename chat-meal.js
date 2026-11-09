@@ -42,7 +42,7 @@
   function previewMeal(meal){
     const panel=el("chatMealPreview");
     if(panel){
-      panel.classList.remove("hide");
+      panel.classList.toggle("hide",false);
       panel.textContent=meal.date+" · "+meal.type+" — "+meal.name+
         " · ≈ "+meal.kcal+" ккал · Б "+meal.protein+
         " / Ж "+meal.fat+" / У "+meal.carbs+" г";
