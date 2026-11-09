@@ -296,3 +296,11 @@ body{
 @media(prefers-reduced-motion:reduce){
   .mini-week-day .mini-week-bar,.tab-icon svg,.calendar-card .calendar-day{transition:none}
 }
+
+/* iOS nav intrinsic guard: icons stay 22 px even when iOS zoom/text settings
+   or partially cached theme assets differ across service-worker versions. */
+.tabs{align-items:stretch}
+.tabs button{height:66px;min-height:66px;max-height:66px;overflow:hidden}
+.tabs .tab-icon{flex:0 0 24px;min-width:24px;max-width:24px;min-height:24px;max-height:24px}
+.tabs .tab-icon svg{display:block;width:22px;height:22px;min-width:22px;max-width:22px;min-height:22px;max-height:22px;flex:none}
+.tabs .tab-label{line-height:1.15}
