@@ -251,6 +251,13 @@
     $("todayKcal").textContent = dailyTotal;
     $("goalKcal").textContent = db.settings.calories || 2500;
     $("calFill").style.width = Math.max(0, Math.min(100, 100 * dailyTotal / (Number(db.settings.calories) || 2500))) + "%";
+    const remaining = (Number(db.settings.calories) || 2500) - dailyTotal;
+    $("remainingKcal").textContent = dayItems.length === 0 ?
+      "За этот день пока нет записей." :
+      remaining >= 0 ?
+        "До ориентировочной дневной цели ≈ " + Math.round(remaining) + " ккал. Не обязательно добирать их точно." :
+        "Выше ориентировочной цели примерно на " + Math.abs(Math.round(remaining)) +
+          " ккал. Это не повод пропускать следующий приём пищи.";
     $("prot").textContent = sum(dayItems, "protein") + " г";
     $("fat").textContent = sum(dayItems, "fat") + " г";
     $("carb").textContent = sum(dayItems, "carbs") + " г";
