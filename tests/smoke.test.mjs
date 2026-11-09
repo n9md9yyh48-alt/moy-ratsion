@@ -482,15 +482,15 @@ test("report display and recipe favorites do not publish personal data", () => {
 test("new dark-gold UI is offline-only and preserves the original diary model",()=>{
   const css=fs.readFileSync(new URL("../theme-v3.css",import.meta.url),"utf8");
   const layer=fs.readFileSync(new URL("../ui-v3.js",import.meta.url),"utf8");
-  assert.match(html,/href="theme-v3\.css"/);
-  assert.match(html,/src="ui-v3\.js"/);
+  assert.match(html,/href="theme-v3\.css\?v=19"/);
+  assert.match(html,/src="ui-v3\.js\?v=19"/);
   for(const id of ["calorieRing","kcalDelta","nutritionDate","protBar","fatBar","carbBar"]){
     assert.match(html,new RegExp('id="'+id+'"'));
   }
   assert.match(html,/id="chatMealCode"/);
-  assert.match(serviceWorker,/moy-ratsion-v18/);
-  assert.match(serviceWorker,/theme-v3\.css/);
-  assert.match(serviceWorker,/ui-v3\.js/);
+  assert.match(serviceWorker,/moy-ratsion-v19/);
+  assert.match(serviceWorker,/theme-v3\.css\?v=19/);
+  assert.match(serviceWorker,/ui-v3\.js\?v=19/);
   assert.match(css,/--gold:/);
   assert.match(css,/color-scheme:dark/);
   assert.match(html,/class="app-logo"/);
@@ -505,4 +505,13 @@ test("new dark-gold UI is offline-only and preserves the original diary model",(
   assert.match(icon,/aria-label="Мой рацион"/);
   assert.doesNotMatch(layer,/localStorage\.setItem|fetch\(/);
   assert.doesNotThrow(()=>new vm.Script(layer));
+});
+
+test("iPhone bottom navigation SVG sizes are intrinsic even before CSS refresh",()=>{
+  const nav=html.split('<nav class="tabs"')[1]?.split("</nav>")[0]||"";
+  assert.equal((nav.match(/<svg aria-hidden="true" width="22" height="22"/g)||[]).length,5);
+  assert.equal((nav.match(/class="tab-icon" style="display:inline-flex/g)||[]).length,5);
+  assert.equal((nav.match(/height:66px;max-height:66px;min-height:66px/g)||[]).length,5);
+  const stylesheet=fs.readFileSync(new URL("../theme-v3.css",import.meta.url),"utf8");
+  assert.match(stylesheet,/iOS nav intrinsic guard/);
 });
