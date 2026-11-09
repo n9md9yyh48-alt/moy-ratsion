@@ -247,11 +247,16 @@ test("iPhone navigation stays compact with an outdated stylesheet in cache",asyn
   page.on("pageerror",e=>errors.push(e.message));
   try{
     // Emulates a previously cached theme missing the new SVG navigation rules.
-    await page.route(/theme-v3\\.css(?:\\?|$)/,route=>route.fulfill({
+    let staleStyles=0;
+    await page.route(url=>url.pathname.endsWith("/theme-v3.css"),route=>{
+      staleStyles++;
+      return route.fulfill({
       status:200,contentType:"text/css",
       body:"/* old cached theme without nav SVG dimensions */ .tabs{background:white}"
-    }));
+      });
+    });
     await page.goto(base,{waitUntil:"load"});
+    assert.equal(staleStyles,1,"Must intercept the stylesheet to test mixed-version cache");
     for(const width of [390,320]){
       await page.setViewportSize({width,height:844});
       const icons=await page.locator(".tabs .tab-icon svg").evaluateAll(nodes=>nodes.map(n=>{
