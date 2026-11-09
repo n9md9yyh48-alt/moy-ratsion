@@ -202,6 +202,18 @@ test("dark-gold 3.0 dashboard reflects real local meals at 390px and 320px witho
     assert.match(await page.locator("#calorieRing").getAttribute("style"),/--ring-percent: 30\.00%/);
     assert.match(await page.locator("#kcalDelta").textContent(),/Осталось 1\s?750 ккал/);
     assert.equal(await page.locator("#meals .meal-entry").count(),2);
+    assert.equal((await page.locator("#mealCount").textContent()).trim(),"2 записи");
+    assert.equal(await page.locator("#miniWeekBars .mini-week-day").count(),7);
+    const day=page.locator("#miniWeekBars .mini-week-day").last();
+    assert.match(await day.getAttribute("title"),/750 ккал/);
+    assert.ok(await day.evaluate(el=>el.classList.contains("selected")));
+    assert.ok(await day.evaluate(el=>el.classList.contains("recorded")));
+    assert.ok(await page.locator(".hero-primary").isVisible());
+    await page.locator(".hero-import").click();
+    assert.equal(await page.locator("#chatImportDetails").evaluate(el=>el.open),true);
+    await page.locator('button[data-tab="reports"]').click();
+    assert.equal(await page.locator('button[data-tab="reports"]').getAttribute("aria-current"),"page");
+    await page.locator('button[data-tab="home"]').click();
     assert.equal(await page.locator("#meals .meal-thumb").count(),2);
     assert.match(await page.locator("#meals").innerText(),/Курица с рисом/);
     assert.match(await page.locator("#meals").innerText(),/Б 35 г/);
