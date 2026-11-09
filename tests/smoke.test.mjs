@@ -72,7 +72,7 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatImportDetails","chatSharePreview","chatShareStatus","remainingKcal"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatMealPreview","chatImportDetails","chatSharePreview","chatShareStatus","remainingKcal"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
@@ -399,13 +399,19 @@ test("iPhone Safari import warns about separate PWA storage and keeps code to co
   const env=environment(initialData(),{
     hash:"#meal="+code,userAgent:"Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X)"
   });
-  assert.match(env.confirmations.at(-1),/Safari может сохранить запись ОТДЕЛЬНО/);
+  assert.equal(env.confirmations.length,0);
+  assert.match(env.element("chatMealStatus").textContent,/окно Safari/);
+  assert.match(env.element("chatMealPreview").textContent,/1352 ккал/);
   assert.equal(env.element("chatImportDetails").open,true);
   assert.equal(env.element("chatMealCode").value,"meal:"+code);
   const copied=await env.context.window.vChatMealCopy();
   assert.equal(copied,true);
   assert.equal(env.copied[0],"meal:"+code);
+  assert.equal(env.read().meals.length,1);
+  // User can explicitly save to this browser, but link itself doesn't touch data.
+  env.context.window.vChatMealImport();
   assert.equal(env.read().meals.length,2);
+  assert.match(env.confirmations.at(-1),/Safari может сохранить запись ОТДЕЛЬНО/);
 });
 test("installed iPhone app does not show Safari storage warning on import",()=>{
   const payload={v:1,id:"ios-installed",date:"2026-11-09",type:"Завтрак",
