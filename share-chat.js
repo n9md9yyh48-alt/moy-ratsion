@@ -17,7 +17,7 @@
  const validDate=value=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&
    fmt(new Date(value+"T12:00:00"))===value;
  const selectedDate=()=>{
-   const date=get("selectedDate")?.value;
+   const date=get("chatShareDate")?.value || get("selectedDate")?.value;
    return validDate(date)?date:today();
  };
  const numbers=meals=>{
@@ -87,12 +87,20 @@
      baseTab("home");
      for(const id of ["home","recipes","reports","settings"])get(id).classList.toggle("hide",true);
      get("share").classList.toggle("hide",false);
+     get("chatShareDate").value=get("selectedDate")?.value||today();
+     preview.value="";
+     preview.hidden=true;
      document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x.dataset.tab===name));
      get("heading").textContent="ChatGPT и дневник 💬";
      return;
    }
    get("share").classList.toggle("hide",true);
    baseTab(name);
+ };
+ window.vShareChatDateChanged=()=>{
+   preview.value="";
+   preview.hidden=true;
+   status.textContent="Дата изменена. Выбери день или 7 дней для нового отчёта.";
  };
  window.vShareChatDay=()=>show("day");
  window.vShareChatWeek=()=>show("week");
