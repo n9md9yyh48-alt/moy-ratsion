@@ -488,11 +488,15 @@ test("new dark-gold UI is offline-only and preserves the original diary model",(
     assert.match(html,new RegExp('id="'+id+'"'));
   }
   assert.match(html,/id="chatMealCode"/);
-  assert.match(serviceWorker,/moy-ratsion-v16/);
+  assert.match(serviceWorker,/moy-ratsion-v17/);
   assert.match(serviceWorker,/theme-v3\.css/);
   assert.match(serviceWorker,/ui-v3\.js/);
   assert.match(css,/--gold:/);
   assert.match(css,/color-scheme:dark/);
+  assert.match(html,/class="app-logo"/);
+  const icon=fs.readFileSync(new URL("../icon.svg",import.meta.url),"utf8");
+  assert.match(icon,/#f8db9b/);
+  assert.match(icon,/aria-label="Мой рацион"/);
   assert.doesNotMatch(layer,/localStorage\.setItem|fetch\(/);
   assert.doesNotThrow(()=>new vm.Script(layer));
 });
