@@ -107,8 +107,8 @@ test("a chat link in an iPhone Safari-like browser does not silently save into w
     assert.equal(await page.locator("#chatMealCode").inputValue(),"meal:"+code);
     assert.match(await page.locator("#chatMealPreview").innerText(),/123 ккал/);
     assert.match(await page.locator("#chatMealStatus").innerText(),/Safari/);
-    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem("moy-ratsion-v1")));
-    assert.equal(stored.meals.length,0);
+    const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem("moy-ratsion-v1")||"null"));
+    assert.equal(stored?.meals.length||0,0);
     assert.equal(dialogs.length,0);
   }finally{await context.close();}
 });
