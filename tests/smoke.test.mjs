@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "ai-config.js", "ai-client.js", "coach-client.js"];
+const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "ai-config.js", "ai-client.js", "coach-client.js", "chat-meal.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -50,9 +50,11 @@ function environment(seed = initialData(), options = {}) {
     crypto: {randomUUID: () => "test-" + ++counter},
     alert: message => alerts.push(String(message)),
     confirm: message => {confirmations.push(String(message)); return true},
-    location: {reload() {}}, URL: {createObjectURL: () => "blob:fake", revokeObjectURL() {}},
+    location: {reload() {},hash:options.hash||"",pathname:"/moy-ratsion/",search:""},
+    history:{replaceState() {}}, URL: {createObjectURL: () => "blob:fake", revokeObjectURL() {}},
     Blob, Image: class {naturalWidth=1800; naturalHeight=1200;
       set src(_value) {Promise.resolve().then(() => this.onload?.());}}, setTimeout: () => {}, clearTimeout: () => {}, AbortController,
+    atob, TextDecoder,
     prompt: () => options.token || "",
     fetch: options.fetch || (() => {throw Error("Unexpected network request")})
   };
@@ -70,7 +72,7 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","aiAnalyzePhoto","aiPhotoStatus","aiPhotoResult","aiPhotoResultText","aiApplyEstimate","coachMessages","coachText","coachShareWeek","coachSend","coachClear","coachStatus"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","aiAnalyzePhoto","aiPhotoStatus","aiPhotoResult","aiPhotoResultText","aiApplyEstimate","coachMessages","coachText","coachShareWeek","coachSend","coachClear","coachStatus","chatMealCode","chatMealStatus"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
@@ -80,6 +82,7 @@ test("all scripts parse and UI contains the required controls", () => {
   assert.match(serviceWorker, /ai-config\.js/);
   assert.match(serviceWorker, /ai-client\.js/);
   assert.match(serviceWorker, /coach-client\.js/);
+  assert.match(serviceWorker, /chat-meal\.js/);
 });
 
 test("opens existing data without a migration or overwriting photos", () => {
@@ -382,6 +385,48 @@ test("chat sends only typed text by default, not local diary data", async()=>{
   assert.match(env.element("coachMessages").innerHTML,/Здесь появится диалог/);
 });
 
+test("share code adds one breakfast without replacing previous meals",()=>{
+  const env=environment();
+  const payload={
+    v:1,id:"breakfast-20261109-main",date:"2026-11-09",
+    type:"Завтрак",name:"Яичница, белые колбаски, картофельные крокеты, чёрный кофе",
+    kcal:1352,protein:58,fat:96,carbs:74
+  };
+  const code=Buffer.from(JSON.stringify(payload),"utf8").toString("base64url");
+  env.element("chatMealCode").value="meal:"+code;
+  env.context.window.vChatMealImport();
+  const meals=env.read().meals;
+  assert.equal(meals.length,2);
+  const added=meals.at(-1);
+  assert.equal(added.id,"chat-breakfast-20261109-main");
+  assert.equal(added.date,"2026-11-09");
+  assert.equal(added.kcal,1352);
+  assert.equal(added.protein,58);
+  assert.equal(added.fat,96);
+  assert.equal(added.carbs,74);
+  assert.equal(added.photo,null);
+  assert.equal(meals[0].id,"old-1");
+  assert.equal(env.context.window.v12ValidateBackup(env.read()),true);
+  env.element("chatMealCode").value="meal:"+code;
+  env.context.window.vChatMealImport();
+  assert.equal(env.read().meals.length,2);
+  assert.match(env.alerts.at(-1),/уже есть/);
+});
+test("malformed chat code is rejected without altering stored records",()=>{
+  const env=environment();
+  env.element("chatMealCode").value="https://example.com/#meal=INVALID";
+  env.context.window.vChatMealImport();
+  assert.equal(env.read().meals.length,1);
+  assert.match(env.alerts.at(-1),/не распознан/);
+});
+test("URL fragment can offer a meal while leaving stored meals intact until confirmation",()=>{
+  const payload={v:1,id:"link-test-20261109",date:"2026-11-09",
+    type:"Завтрак",name:"Завтрак из чата",kcal:1352,protein:58,fat:96,carbs:74};
+  const code=Buffer.from(JSON.stringify(payload),"utf8").toString("base64url");
+  const env=environment(initialData(),{hash:"#meal="+code});
+  assert.equal(env.read().meals.length,2);
+  assert.match(env.confirmations.at(-1),/Добавить в локальный дневник/);
+});
 test("report display and recipe favorites do not publish personal data", () => {
   assert.match(source["app.js"], /moy-ratsion-v1/);
   assert.match(html, /Версия 1\.2/);
