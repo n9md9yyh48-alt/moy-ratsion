@@ -1,6 +1,6 @@
 /* Мой рацион v1.2: обновление без застревания в старом офлайн-кэше */
-const CACHE = "moy-ratsion-v11";
-const ASSETS = ["./", "./index.html", "./app.js", "./photo-safe.js", "./features-v12.js", "./recipes-extra.js", "./extras.js", "./my-foods.js", "./meal-builder.js", "./ai-config.js", "./ai-client.js", "./coach-client.js", "./chat-meal.js",
+const CACHE = "moy-ratsion-v12";
+const ASSETS = ["./", "./index.html", "./app.js", "./photo-safe.js", "./features-v12.js", "./recipes-extra.js", "./extras.js", "./my-foods.js", "./meal-builder.js", "./chat-meal.js", "./share-chat.js",
   "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", event => {
