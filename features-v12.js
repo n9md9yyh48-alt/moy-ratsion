@@ -219,17 +219,31 @@
     const rows = knownMeals().map((item, idx) => ({ item, idx }))
       .filter(o => o.item.date === selectedDate).reverse();
     const favKeys = new Set(favorites().map(signature));
-    $("meals").innerHTML = rows.length ? rows.map(({ item, idx }) => {
+    const iconByType = { "Завтрак":"🍳","Обед":"🥘","Ужин":"🍽️","Перекус":"🍏","Напиток":"🥤" };
+    $("meals").innerHTML = rows.length ? rows.map(({item,idx}) => {
       const fav = favKeys.has(signature(item));
-      return '<div class="item"><div class="row between"><div><b>' + esc(item.name) +
-        '</b><div class="muted">' + esc(item.type) + ' · ' + esc(item.kcal) +
-        ' ккал</div></div><div class="edit-actions">' +
-        '<button class="btn secondary" onclick="v12EditMeal(' + idx + ')">Изменить</button>' +
-        '<button class="btn ghost" onclick="v12RemoveMeal(' + idx + ')">✕</button></div></div>' +
-        (item.photo ? '<img class="photo" src="' + esc(item.photo) + '" alt="Фото еды">' : '') +
-        '<div class="row meal-tools"><button class="btn ghost" onclick="v12QuickMeal(' + idx +
-        ')">↻ Повторить</button><button class="btn ghost" onclick="v12ToggleFavorite(' + idx +
-        ')">' + (fav ? "★ В избранном" : "☆ В избранное") + "</button></div></div>";
+      const icon = iconByType[item.type] || "🍴";
+      // Photo is validated on input/import and escaped again before HTML insertion.
+      const thumb = item.photo ?
+        '<img class="meal-thumb" src="' + esc(item.photo) + '" alt="Фото блюда">' :
+        '<div class="meal-thumb" aria-hidden="true">' + icon + '</div>';
+      return '<div class="item meal-entry">' +
+        '<div class="meal-entry-main">' + thumb +
+        '<div class="meal-entry-content"><div class="meal-card-label">' + esc(item.type) + '</div>' +
+        '<b>' + esc(item.name) + '</b>' +
+        '<div class="meal-meta">' + esc(item.kcal) + ' ккал</div>' +
+        '<div class="meal-macros">' +
+        '<span class="p">Б ' + esc(item.protein || 0) + ' г</span>' +
+        '<span class="f">Ж ' + esc(item.fat || 0) + ' г</span>' +
+        '<span class="c">У ' + esc(item.carbs || 0) + ' г</span></div></div></div>' +
+        '<div class="row meal-tools">' +
+        '<button type="button" class="btn ghost" onclick="v12QuickMeal(' + idx + ')">↻ Повторить</button>' +
+        '<button type="button" class="btn ghost" onclick="v12ToggleFavorite(' + idx + ')">' +
+          (fav ? '★ В избранном' : '☆ В избранное') + '</button>' +
+        '<div class="edit-actions">' +
+        '<button type="button" class="btn secondary" onclick="v12EditMeal(' + idx + ')">Изменить</button>' +
+        '<button type="button" class="btn ghost" aria-label="Удалить запись" onclick="v12RemoveMeal(' + idx + ')">✕</button>' +
+        '</div></div></div>';
     }).join("") : '<p class="muted">В этот день записей нет. Можно добавить еду или выбрать другой день.</p>';
   }
   function renderWeightHistory() {
