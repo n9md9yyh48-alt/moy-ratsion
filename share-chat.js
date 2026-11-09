@@ -81,6 +81,19 @@
      return false;
    }
  }
+ const baseTab=tab;
+ tab=function(name){
+   if(name==="share"){
+     baseTab("home");
+     for(const id of ["home","recipes","reports","settings"])get(id).classList.toggle("hide",true);
+     get("share").classList.toggle("hide",false);
+     document.querySelectorAll("[data-tab]").forEach(x=>x.classList.toggle("active",x.dataset.tab===name));
+     get("heading").textContent="ChatGPT и дневник 💬";
+     return;
+   }
+   get("share").classList.toggle("hide",true);
+   baseTab(name);
+ };
  window.vShareChatDay=()=>show("day");
  window.vShareChatWeek=()=>show("week");
  window.vShareChatCopy=copy;
