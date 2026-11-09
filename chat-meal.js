@@ -39,10 +39,20 @@
     return {id:"chat-"+item.id,date:item.date,type:item.type,name:item.name.trim(),
       kcal:item.kcal,protein:item.protein,fat:item.fat,carbs:item.carbs,photo:null};
   }
+  function previewMeal(meal){
+    const panel=el("chatMealPreview");
+    if(panel){
+      panel.classList.remove("hide");
+      panel.textContent=meal.date+" · "+meal.type+" — "+meal.name+
+        " · ≈ "+meal.kcal+" ккал · Б "+meal.protein+
+        " / Ж "+meal.fat+" / У "+meal.carbs+" г";
+    }
+  }
   function save(code){
     let meal;
     try{meal=verified(decode(code));}
     catch(_){alert("Код питания не распознан. Проверь скопированный текст.");return false;}
+    previewMeal(meal);
     if(db.meals.some(x=>x.id===meal.id)){
       alert("Эта запись уже есть в дневнике. Повторно не добавляю.");
       return false;
@@ -102,13 +112,24 @@
     if(input)input.value="meal:"+code.slice(6);
     const details=el("chatImportDetails");
     if(details)details.open=true;
-    if(isIosBrowser())status("Если ссылка открыта в Safari, запись может попасть не в установленный дневник. Скопируй код для переноса.");
+    let parsed;
+    try{
+      parsed=verified(decode(code));
+      previewMeal(parsed);
+    }catch(_){
+      status("Некорректная ссылка. Данные не добавлены.");
+      return;
+    }
+    if(isIosBrowser())status("Это окно Safari, а не установленное приложение. Чтобы не потерять запись, нажми «Копировать код», затем вставь его в установленном «Моём рационе».");
+    else status("Проверь данные и подтверди добавление в свой дневник.");
     // Remove the fragment from browser history regardless of confirmation;
     // avoids repeated prompting and accidental exposure in screen sharing.
     if(typeof history!=="undefined"&&typeof history.replaceState==="function"){
       history.replaceState(null,"",location.pathname+location.search);
     } else location.hash="";
-    save(code);
+    // An iPhone Safari tab may have a DIFFERENT localStorage than the
+    // home-screen installed app. Do not save to the wrong diary automatically.
+    if(!isIosBrowser())save(code);
   }
   processLink();
   if(typeof addEventListener==="function")addEventListener("hashchange",processLink);
