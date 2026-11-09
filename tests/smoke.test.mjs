@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "ai-config.js", "ai-client.js", "coach-client.js", "chat-meal.js"];
+const files = ["app.js", "photo-safe.js", "features-v12.js", "recipes-extra.js", "extras.js", "my-foods.js", "meal-builder.js", "chat-meal.js", "share-chat.js"];
 const source = Object.fromEntries(files.map(file => [file, fs.readFileSync(new URL("../" + file, import.meta.url), "utf8")]));
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const serviceWorker = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
@@ -22,7 +22,7 @@ function initialData(day = iso(-1)) {
 function environment(seed = initialData(), options = {}) {
   const state = new Map([["moy-ratsion-v1", JSON.stringify(seed)]]);
   const elements = new Map();
-  const alerts = [], confirmations = [];
+  const alerts = [], confirmations = [], copied = [];
   let quota = false, counter = 0;
   const canvas = new Proxy({}, {get: () => () => {}, set: () => true});
   function element(id) {
@@ -46,7 +46,7 @@ function environment(seed = initialData(), options = {}) {
     removeItem: key => state.delete(key)
   };
   const sandbox = {
-    window: {}, document, localStorage, navigator: {},
+    window: {}, document, localStorage, navigator: {clipboard:{writeText:async(value)=>{copied.push(value)}}},
     crypto: {randomUUID: () => "test-" + ++counter},
     alert: message => alerts.push(String(message)),
     confirm: message => {confirmations.push(String(message)); return true},
@@ -64,7 +64,7 @@ function environment(seed = initialData(), options = {}) {
     vm.runInContext(source[file], context, {filename: file});
   }
   const read = () => JSON.parse(state.get("moy-ratsion-v1"));
-  return {context, element, read, alerts, confirmations, state, setQuota: val => {quota = val},
+  return {context, element, read, alerts, confirmations, copied, state, setQuota: val => {quota = val},
     run: expr => vm.runInContext(expr, context)};
 }
 
@@ -72,16 +72,16 @@ test("all scripts parse and UI contains the required controls", () => {
   for (const file of files) assert.doesNotThrow(() => new vm.Script(source[file], {filename: file}));
   for (const id of ["calendarGrid","quickMeals","foodQuery","foodResults","foodGrams","pantryQuery",
     "recipeFavOnly","weeklyBars","weightHistory","storageDetails","removeMealPhoto","removePhotoWrap",
-    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","aiAnalyzePhoto","aiPhotoStatus","aiPhotoResult","aiPhotoResultText","aiApplyEstimate","coachMessages","coachText","coachShareWeek","coachSend","coachClear","coachStatus","chatMealCode","chatMealStatus"]) assert.match(html, new RegExp('id="' + id + '"'));
+    "photoPreview","photoPreviewStatus","builderDetails","builderResults","builderQuery","builderParts","builderTotals","builderGrams","builderDishName","builderApplied","chatMealCode","chatMealStatus","chatSharePreview","chatShareStatus"]) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /src="app.js".*src="features-v12.js".*src="extras.js"/s);
   assert.match(serviceWorker, /extras\.js/);
   assert.match(serviceWorker, /recipes-extra\.js/);
   assert.match(serviceWorker, /photo-safe\.js/);
   assert.match(serviceWorker, /meal-builder\.js/);
   assert.match(serviceWorker, /my-foods\.js/);
-  assert.match(serviceWorker, /ai-config\.js/);
-  assert.match(serviceWorker, /ai-client\.js/);
-  assert.match(serviceWorker, /coach-client\.js/);
+  assert.match(serviceWorker, /share-chat\.js/);
+  assert.doesNotMatch(serviceWorker, /ai-client\.js|coach-client\.js|ai-config\.js/);
+  assert.doesNotMatch(html, /id="coach"|data-tab="coach"|id="aiAnalyzePhoto"/);
   assert.match(serviceWorker, /chat-meal\.js/);
 });
 
@@ -298,93 +298,46 @@ test("malformed ingredient backup cannot replace the diary", () => {
   assert.throws(() => env.context.window.v12ValidateBackup(data), /некорректный состав блюда/);
 });
 
-test("photo AI remains disabled until backend is securely configured", () => {
-  const env = environment();
-  assert.equal(env.element("aiAnalyzePhoto").hidden, true);
-  assert.equal(env.context.window.MEAL_AI_ENDPOINT, "");
-  env.run("openMeal()");
-  assert.equal(env.element("aiPhotoStatus").textContent, "");
-  assert.equal(env.read().meals.length, 1);
-});
-
-test("AI analysis is opt-in, requires a photo, and never auto-saves meal data", async () => {
-  const payloads=[];
-  const valid={
-    recognized:true,requires_confirmation:true,estimated_only:true,dish_name:"Курица с рисом",
-    portion_min_g:200,portion_max_g:300,kcal_min:300,kcal_max:500,
-    protein_min_g:20,protein_max_g:50,fat_min_g:5,fat_max_g:15,
-    carbs_min_g:30,carbs_max_g:70,notes:"Порция оценивается по фото.",confidence:"low"
-  };
-  const env=environment(initialData(),{
-    endpoint:"https://private.example/api/analyze-meal",
-    token:"a".repeat(40),
-    fetch:async(url,options)=>{
-      payloads.push({url,options});
-      return {ok:true,status:200,json:async()=>valid};
-    }
-  });
-  const button=env.element("aiAnalyzePhoto");
-  assert.equal(button.hidden,false);
-  assert.equal(payloads.length,0);
-  await button.onclick();
-  assert.equal(payloads.length,0);
-  env.element("mealPhoto").files=[{type:"image/jpeg",size:2000,name:"dish.jpg"}];
-  await button.onclick();
-  assert.equal(payloads.length,1);
-  assert.equal(payloads[0].url,"https://private.example/api/analyze-meal");
-  assert.equal(JSON.parse(payloads[0].options.body).consent,true);
-  assert.equal(env.read().meals.length,1);
-  assert.equal(env.element("aiPhotoResult").hidden,false);
-  env.element("aiApplyEstimate").onclick();
-  assert.equal(env.element("mealKcal").value,400);
-  assert.equal(env.element("mealProtein").value,35);
-  assert.equal(env.read().meals.length,1);
-});
-
-test("only OpenAI assistant is shown and remains disabled without backend", () => {
+test("share screen works without a server, payment or OpenAI access",()=>{
   const env=environment();
-  assert.equal(env.element("coachSend").disabled,true);
-  assert.equal(env.element("coachText").disabled,true);
-  assert.match(env.element("coachStatus").textContent,/пока не подключён/);
-  env.run("tab('coach')");
-  assert.equal(env.element("heading").textContent,"ИИ-помощник 🤖");
+  env.run("tab('share')");
+  assert.equal(env.element("heading").textContent,"ChatGPT и дневник 💬");
   assert.equal(env.read().meals.length,1);
+  assert.doesNotMatch(html, /src="ai-client.js"|src="coach-client.js"/);
+  assert.match(html, /https:\/\/chatgpt.com\//);
 });
-
-test("chat sends only typed text by default, not local diary data", async()=>{
-  const requests=[];
-  const env=environment(initialData(),{
-    endpoint:"https://secure.example/api/analyze-meal",
-    token:"a".repeat(40),
-    fetch:async(url,options)=>{
-      requests.push({url,payload:JSON.parse(options.body)});
-      return {ok:true,json:async()=>({
-        reply:"Попробуй рис с овощами.",source:"openai",requires_confirmation:true
-      })};
-    }
-  });
-  assert.equal(env.element("coachSend").disabled,false);
-  env.element("coachText").value="Что приготовить из риса?";
-  await env.element("coachSend").onclick();
-  assert.equal(requests.length,1);
-  assert.equal(requests[0].url,"https://secure.example/api/coach");
-  assert.equal(requests[0].payload.consent,true);
-  assert.equal(requests[0].payload.week_summary,undefined);
-  assert.doesNotMatch(JSON.stringify(requests[0].payload),/Яйцо/);
-  assert.match(env.element("coachMessages").innerHTML,/Попробуй рис с овощами/);
-  assert.equal(env.read().meals.length,1);
-  env.element("coachShareWeek").checked=true;
-  env.element("coachText").value="Какой у меня итог за неделю?";
-  await env.element("coachSend").onclick();
-  assert.equal(requests.length,2);
-  assert.equal(requests[1].payload.share_summary,true);
-  assert.equal(requests[1].payload.week_summary.kcal_total,160);
-  assert.equal(requests[1].payload.week_summary.days_logged,1);
-  assert.doesNotMatch(JSON.stringify(requests[1].payload),/Яйцо|base64/);
-  env.element("coachClear").onclick();
-  assert.match(env.element("coachMessages").innerHTML,/Здесь появится диалог/);
+test("daily chat summary is generated only on request without exposing photos",async()=>{
+  const seed=initialData("2026-11-09");
+  seed.meals.push({id:"lunch1",date:"2026-11-09",type:"Обед",
+    name:"Блин с картошкой",kcal:784,protein:13.3,fat:38.8,carbs:97.4,photo:null});
+  const env=environment(seed);
+  env.element("selectedDate").value="2026-11-09";
+  assert.equal(env.copied.length,0);
+  assert.equal(env.element("chatSharePreview").value,"");
+  env.context.window.vShareChatDay();
+  const output=env.element("chatSharePreview").value;
+  assert.match(output,/2026-11-09/);
+  assert.match(output,/944 ккал/);
+  assert.match(output,/Блин с картошкой/);
+  assert.match(output,/Яйцо/);
+  assert.doesNotMatch(output,/base64|data:image/);
+  assert.equal(env.read().meals.length,2);
+  await env.context.window.vShareChatCopy();
+  assert.equal(env.copied.length,1);
+  assert.equal(env.copied[0],output);
+  assert.equal(env.read().meals.length,2);
 });
-
+test("weekly summary clearly marks missing diary days and is never auto-uploaded",()=>{
+  const env=environment(initialData("2026-11-09"));
+  env.element("selectedDate").value="2026-11-09";
+  env.context.window.vShareChatWeek();
+  const output=env.element("chatSharePreview").value;
+  assert.match(output,/за последние 7 календарных дней/i);
+  assert.match(output,/записей нет/);
+  assert.match(output,/2026-11-09/);
+  assert.doesNotMatch(output,/Яйцо|data:image/);
+  assert.equal(env.copied.length,0);
+});
 test("share code adds one breakfast without replacing previous meals",()=>{
   const env=environment();
   const payload={
